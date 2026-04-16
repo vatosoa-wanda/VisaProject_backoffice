@@ -1,0 +1,82 @@
+SPRINT 1 — VISA TRANSFORMABLE (BACKOFFICE)
+Objectif Sprint 1
+
+    Permettre :
+        création d’une demande de visa transformable
+        saisie complète :
+        personne
+        passeport
+        visa actuel
+        choix type visa (travailleur / investisseur)
+        enregistrement en base
+        statut initial = EN_ATTENTE
+
+
+
+
+TEAM LEAD — ARCHITECTURE + SETUP + VALIDATION
+Objectif
+
+    Creer :
+        script creation base sql
+        Tables :
+            personne
+                passeport
+                visa_actuel
+                demande_visa
+                type_visa
+                piece
+                demande_piece
+                statut
+                historique_statut
+
+        - controller
+        - service
+        - repository
+        - entity
+        - dto
+        - mapper
+        - config
+        - exception
+
+
+DEVELOPER 1 — MODULE PERSONNE + PASSEPORT
+Objectif
+
+    Gérer :
+        personne (état civil)
+        passeport
+        création ou récupération personne
+
+    Tests :
+        création personne OK
+        récupération personne existante
+        passeport lié correctement
+
+
+DEVELOPER 2 — DEMANDE + VISA + STATUT + PIECES
+Objectif
+
+    Gérer :
+        création demande visa
+        visa actuel
+        type visa
+        statut workflow
+        pièces liées
+
+    DemandeVisa doit référencer :
+        Personne (via Dev1)
+        Passeport (via Dev1)
+        statut initial = EN_ATTENTE
+
+    Statut
+        changement = création historique obligatoire
+
+    Pièces
+        communes obligatoires
+        spécifiques selon type visa
+
+    Tests :
+        création demande complète
+        statut initial OK
+        changement statut + historique OK
