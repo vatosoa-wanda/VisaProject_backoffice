@@ -1,59 +1,28 @@
 package com.visa.backoffice.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
 @Table(name = "demande_piece")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DemandePiece {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_demande")
-    private DemandeVisa demande;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_demande", nullable = false)
+    private Demande demande;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_piece")
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_piece", nullable = false)
     private Piece piece;
 
-    @Column
-    private Boolean fourni;
-
-    public DemandePiece() {
-        this.fourni = false;
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public DemandeVisa getDemande() {
-        return demande;
-    }
-
-    public void setDemande(DemandeVisa demande) {
-        this.demande = demande;
-    }
-
-    public Piece getPiece() {
-        return piece;
-    }
-
-    public void setPiece(Piece piece) {
-        this.piece = piece;
-    }
-
-    public Boolean getFourni() {
-        return fourni;
-    }
-
-    public void setFourni(Boolean fourni) {
-        this.fourni = fourni;
-    }
+    @Column(nullable = false)
+    private Boolean fourni = false;
 }

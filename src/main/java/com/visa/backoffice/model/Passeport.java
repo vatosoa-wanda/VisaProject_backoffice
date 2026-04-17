@@ -1,15 +1,23 @@
 package com.visa.backoffice.model;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "passeport")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Passeport {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @Column(length = 50, unique = true)
     private String numero;
@@ -20,50 +28,22 @@ public class Passeport {
     @Column(name = "date_expiration")
     private LocalDate dateExpiration;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_personne")
-    private Personne personne;
+    @ManyToOne
+    @JoinColumn(name = "id_demandeur")
+    private Demandeur demandeur;
 
-    public Passeport() {
-    }
+    @OneToMany(mappedBy = "passeport")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<VisaTransformable> visasTransformables = new HashSet<>();
 
-    public Integer getId() {
-        return id;
-    }
+    @OneToMany(mappedBy = "passeport")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<Visa> visas = new HashSet<>();
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public String getNumero() {
-        return numero;
-    }
-
-    public void setNumero(String numero) {
-        this.numero = numero;
-    }
-
-    public LocalDate getDateDelivrance() {
-        return dateDelivrance;
-    }
-
-    public void setDateDelivrance(LocalDate dateDelivrance) {
-        this.dateDelivrance = dateDelivrance;
-    }
-
-    public LocalDate getDateExpiration() {
-        return dateExpiration;
-    }
-
-    public void setDateExpiration(LocalDate dateExpiration) {
-        this.dateExpiration = dateExpiration;
-    }
-
-    public Personne getPersonne() {
-        return personne;
-    }
-
-    public void setPersonne(Personne personne) {
-        this.personne = personne;
-    }
+    @OneToMany(mappedBy = "passeport")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<CarteResident> cartesResidents = new HashSet<>();
 }

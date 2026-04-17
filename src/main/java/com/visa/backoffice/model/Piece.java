@@ -1,58 +1,35 @@
 package com.visa.backoffice.model;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
 @Table(name = "piece")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Piece {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @Column(length = 255)
     private String nom;
 
-    @Column(length = 50)
-    private String type; // COMMUN / INVESTISSEUR / TRAVAILLEUR
+    @Column(nullable = false)
+    private Boolean obligatoire = false;
 
-    @OneToMany(mappedBy = "piece", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_type_piece", nullable = false)
+    private TypePiece typePiece;
+
+    @OneToMany(mappedBy = "piece")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<DemandePiece> demandePieces = new HashSet<>();
-
-    public Piece() {
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public String getNom() {
-        return nom;
-    }
-
-    public void setNom(String nom) {
-        this.nom = nom;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Set<DemandePiece> getDemandePieces() {
-        return demandePieces;
-    }
-
-    public void setDemandePieces(Set<DemandePiece> demandePieces) {
-        this.demandePieces = demandePieces;
-    }
 }

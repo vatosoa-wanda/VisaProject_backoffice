@@ -1,9 +1,9 @@
 package com.visa.backoffice.repository;
 
-import com.visa.backoffice.model.HistoriqueStatut;
+import com.visa.backoffice.model.TypeVisa;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface HistoriqueStatutRepository extends JpaRepository<HistoriqueStatut, Long> {
+public interface TypeVisaRepository extends JpaRepository<TypeVisa, Long> {
 }

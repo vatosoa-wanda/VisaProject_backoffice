@@ -7,22 +7,22 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "type_visa")
+@Table(name = "nationalite")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TypeVisa {
+public class Nationalite {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 100, nullable = false)
+    @Column(length = 100, unique = true, nullable = false)
     private String libelle;
 
-    @OneToMany(mappedBy = "typeVisa")
+    @OneToMany(mappedBy = "nationalite")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<Demande> demandes = new HashSet<>();
+    private Set<Demandeur> demandeurs = new HashSet<>();
 }
