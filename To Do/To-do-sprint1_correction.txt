@@ -1,0 +1,113 @@
+TL : ETU003324
+Devs :  
+    ETU003366
+    ETU003350
+
+BackOffice
+
+    Module : Etat civil
+        Tache : Module Personne
+            - Affichage :
+                Formulaire création personne (nom, prenom, date_naissance, etc.)
+            - Metier :
+                Création personne
+                Vérification existence (doublon)
+                Récupération personne existante
+            - Responsable : ETU003350
+
+        Tache : Module Passeport
+            - Affichage :
+                Formulaire saisie passeport
+            - Metier :
+                Validation données passeport
+                Liaison avec personne
+                Insertion en base
+            - Responsable : ETU003350
+
+
+
+    Module : Demande
+        Tache : Module Visa Actuel
+            - Affichage :
+                Formulaire saisie visa actuel
+            - Metier :
+                Enregistrement visa actuel lié à la personne
+            - Responsable : ETU003366
+
+        Tache : Module Type Visa
+            - Metier :
+                Gestion type visa :
+                    - travailleur
+                    - investisseur
+                Récupération liste type visa
+            - Responsable : ETU003366
+
+        Tache : Création Demande Visa
+            - Affichage :
+                Formulaire complet :
+                    - personne
+                    - passeport
+                    - visa actuel
+                    - type visa
+            - Metier :
+                Création demande_visa
+                Liaison :
+                    - personne
+                    - passeport
+                Initialisation statut = EN_ATTENTE
+                Insertion en base
+            - Responsable : ETU003366
+
+        Tache : Module Statut
+            - Metier :
+                Création statut EN_ATTENTE
+                Gestion changement statut
+                Historisation obligatoire dans historique_statut
+            - Responsable : ETU003366
+
+        Tache : Module Pièces
+            - Metier :
+                Gestion pièces :
+                    - pièces communes obligatoires
+                    - pièces spécifiques selon type visa
+                Liaison avec demande (demande_piece)
+            - Responsable : ETU003366
+
+
+    Module : Architecture & Base (Transverse)
+        Tache : Initialisation du projet
+            - Metier :
+                Création du projet Spring Boot
+                Mise en place des packages :
+                    - controller
+                    - service
+                    - repository
+                    - entity
+                    - dto
+                    - mapper
+                    - config
+                    - exception
+                Configuration base de données
+            - Responsable : ETU003324
+
+        Tache : Script Base de Données
+            - Metier :
+                Création des tables :
+                    - personne
+                    - passeport
+                    - visa_actuel
+                    - demande_visa
+                    - type_visa
+                    - piece
+                    - demande_piece
+                    - statut
+                    - historique_statut
+            - Responsable : ETU003324
+
+        Tache : Validation Sprint
+            - Metier :
+                Vérification globale :
+                    - cohérence base de données
+                    - respect architecture
+                    - fonctionnement API
+            - Responsable : ETU003324
