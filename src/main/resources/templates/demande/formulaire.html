@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demande de Visa Transformable</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .section-header {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+        .badge-obligatoire {
+            color: red;
+            font-weight: bold;
+        }
+        .alert-error {
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h1 class="mb-4">DEMANDE DE VISA TRANSFORMABLE</h1>
+
+    <!-- Message d'erreur global (BusinessException) -->
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>Erreur :</strong> <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <form th:action="@{/demandes/nouvelle}" th:object="${demandeForm}" method="post" novalidate>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟦 ÉTAT CIVIL (Dev1)                   -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>🟦 État Civil</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="nom" class="form-label">Nom <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="nom" th:field="*{demandeurDTO.nom}" required>
+                <div th:errors="*{demandeurDTO.nom}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="prenom" class="form-label">Prénom</label>
+                <input type="text" class="form-control" id="prenom" th:field="*{demandeurDTO.prenom}">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="nomJeuneFille" class="form-label">Nom jeune fille</label>
+                <input type="text" class="form-control" id="nomJeuneFille" th:field="*{demandeurDTO.nomJeuneFille}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateNaissance" class="form-label">Date de naissance <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateNaissance" th:field="*{demandeurDTO.dateNaissance}" required>
+                <div th:errors="*{demandeurDTO.dateNaissance}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="lieuNaissance" class="form-label">Lieu de naissance</label>
+                <input type="text" class="form-control" id="lieuNaissance" th:field="*{demandeurDTO.lieuNaissance}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="situationFamiliale" class="form-label">Situation familiale <span class="badge-obligatoire">*</span></label>
+                <select class="form-select" id="situationFamiliale" th:field="*{demandeurDTO.idSituationFamiliale}" required>
+                    <option value="">-- Sélectionner --</option>
+                    <option th:each="sf : ${situationsFamiliales}" th:value="${sf.id}" th:text="${sf.libelle}"></option>
+                </select>
+                <div th:errors="*{demandeurDTO.idSituationFamiliale}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="nationalite" class="form-label">Nationalité <span class="badge-obligatoire">*</span></label>
+                <select class="form-select" id="nationalite" th:field="*{demandeurDTO.idNationalite}" required>
+                    <option value="">-- Sélectionner --</option>
+                    <option th:each="nat : ${nationalites}" th:value="${nat.id}" th:text="${nat.libelle}"></option>
+                </select>
+                <div th:errors="*{demandeurDTO.idNationalite}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="adresseMadagascar" class="form-label">Adresse Madagascar <span class="badge-obligatoire">*</span></label>
+            <textarea class="form-control" id="adresseMadagascar" th:field="*{demandeurDTO.adresseMadagascar}" rows="3" required></textarea>
+            <div th:errors="*{demandeurDTO.adresseMadagascar}" class="alert-error text-danger"></div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="telephone" class="form-label">Téléphone <span class="badge-obligatoire">*</span></label>
+                <input type="tel" class="form-control" id="telephone" th:field="*{demandeurDTO.telephone}" required>
+                <div th:errors="*{demandeurDTO.telephone}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" th:field="*{demandeurDTO.email}">
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟩 PASSEPORT (Dev1)                    -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>🟩 Passeport</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="numeroPasSeport" class="form-label">Numéro <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="numeroPasSeport" th:field="*{passeportDTO.numero}" required>
+                <div th:errors="*{passeportDTO.numero}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateDelivrance" class="form-label">Date de délivrance <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateDelivrance" th:field="*{passeportDTO.dateDelivrance}" required>
+                <div th:errors="*{passeportDTO.dateDelivrance}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="dateExpirationPasSeport" class="form-label">Date d'expiration <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateExpirationPasSeport" th:field="*{passeportDTO.dateExpiration}" required>
+                <div th:errors="*{passeportDTO.dateExpiration}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟨 VISA TRANSFORMABLE (Dev2)           -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>🟨 Visa Transformable</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="referenceVisa" class="form-label">Référence Visa <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="referenceVisa" th:field="*{visaDTO.referenceVisa}" required>
+                <div th:errors="*{visaDTO.referenceVisa}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateEntreeVisa" class="form-label">Date d'entrée <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateEntreeVisa" th:field="*{visaDTO.dateEntree}" required>
+                <div th:errors="*{visaDTO.dateEntree}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="lieuEntree" class="form-label">Lieu d'entrée <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="lieuEntree" th:field="*{visaDTO.lieuEntree}" required>
+                <div th:errors="*{visaDTO.lieuEntree}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateExpirationVisa" class="form-label">Date d'expiration visa <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateExpirationVisa" th:field="*{visaDTO.dateExpiration}" required>
+                <div th:errors="*{visaDTO.dateExpiration}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟥 DEMANDE (Dev2)                      -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>🟥 Demande</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="typeVisa" class="form-label">Type de visa <span class="badge-obligatoire">*</span></label>
+                <select class="form-select" id="typeVisa" th:field="*{idTypeVisa}" required>
+                    <option value="">-- Sélectionner --</option>
+                    <option th:each="tv : ${typesVisa}" th:value="${tv.id}" th:text="${tv.libelle}"></option>
+                </select>
+                <div th:errors="*{idTypeVisa}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟪 PIÈCES À FOURNIR (Dev2)             -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>🟪 Pièces à fournir</h2>
+        </div>
+
+        <!-- Pièces communes : affichées statiquement -->
+        <h4>Pièces communes</h4>
+        <div id="piecesCommunes">
+            <div th:each="piece : ${piecesCommunes}" class="form-check">
+                <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'piece_' + ${piece.id}">
+                <label class="form-check-label" th:for="'piece_' + ${piece.id}">
+                    <span th:text="${piece.nom}"></span>
+                    <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Pièces spécifiques : chargées dynamiquement par AJAX -->
+        <h4 style="margin-top: 20px;">Pièces spécifiques</h4>
+        <div id="pieces-specifiques">
+            <!-- Contenu injecté par JavaScript -->
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BOUTONS                                     -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="form-actions mt-4">
+            <button type="submit" class="btn btn-primary">ENREGISTRER</button>
+            <a th:href="@{/}" class="btn btn-secondary">ANNULER</a>
+        </div>
+
+    </form>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- JAVASCRIPT : chargement dynamique des pièces   -->
+<!-- ═══════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.getElementById('typeVisa').addEventListener('change', function () {
+        const idTypeVisa = this.value;
+        const container = document.getElementById('pieces-specifiques');
+        container.innerHTML = '';  // vider le bloc précédent
+
+        if (!idTypeVisa) return;
+
+        fetch('/demandes/pieces?idTypeVisa=' + idTypeVisa)
+            .then(response => response.json())
+            .then(pieces => {
+                if (pieces.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Aucune pièce spécifique requise</p>';
+                    return;
+                }
+
+                pieces.forEach(piece => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'piecesFournies';
+                    checkbox.value = piece.id;
+                    checkbox.id = 'spec_piece_' + piece.id;
+                    checkbox.className = 'form-check-input';
+
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = 'spec_piece_' + piece.id;
+                    label.textContent = piece.nom;
+
+                    if (piece.obligatoire) {
+                        const span = document.createElement('span');
+                        span.className = 'badge-obligatoire';
+                        span.textContent = ' *';
+                        label.appendChild(span);
+                    }
+
+                    div.appendChild(checkbox);
+                    div.appendChild(label);
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => {
+                console.error('Erreur chargement pièces:', err);
+                container.innerHTML = '<p class="alert alert-danger">Erreur lors du chargement des pièces</p>';
+            });
+    });
+</script>
+
+</body>
+</html>
