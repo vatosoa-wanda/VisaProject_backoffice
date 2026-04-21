@@ -27,6 +27,7 @@ public class DemandeService {
     private final PieceRepository pieceRepository;
     private final VisaTransformableService visaTransformableService;
     private final DemandeurService demandeurService;
+    private final DemandeurRepository demandeurRepository;
     private final PasseportService passeportService;
     private final DemandeMapper demandeMapper;
     private final PieceService pieceService;
@@ -40,6 +41,7 @@ public class DemandeService {
                          PieceRepository pieceRepository,
                          VisaTransformableService visaTransformableService,
                          DemandeurService demandeurService,
+                         DemandeurRepository demandeurRepository,
                          PasseportService passeportService,
                          DemandeMapper demandeMapper,
                          PieceService pieceService) {
@@ -52,6 +54,7 @@ public class DemandeService {
         this.pieceRepository = pieceRepository;
         this.visaTransformableService = visaTransformableService;
         this.demandeurService = demandeurService;
+        this.demandeurRepository = demandeurRepository;
         this.passeportService = passeportService;
         this.demandeMapper = demandeMapper;
         this.pieceService = pieceService;
@@ -78,6 +81,12 @@ public class DemandeService {
      * @throws ResourceNotFoundException si TypeVisa introuvable
      */
     public DemandeResponseDTO creerDemande(DemandeCreateDTO dto) {
+
+        // ÉTAPE 0 — Vérifier si le demandeur existe déjà
+        boolean demandeurExistait = demandeurRepository.findByNomAndDateNaissance(
+                dto.getDemandeurDTO().getNom(),
+                dto.getDemandeurDTO().getDateNaissance()
+        ).isPresent();
 
         // ÉTAPE 1 — Demandeur (Dev1)
         Demandeur demandeur = demandeurService.creerOuRecuperer(dto.getDemandeurDTO());
@@ -108,6 +117,7 @@ public class DemandeService {
         demande.setTypeVisa(typeVisa);
         demande.setTypeDemande(typeDemande);
         demande.setStatutDemande(statutCree);
+        // demande.setDemandeurExistant(demandeurExistait);
         demande = demandeRepository.save(demande);
 
         // ÉTAPE 8 — Historique statut initial (RG-07 : obligatoire)
