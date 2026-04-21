@@ -23,4 +23,5 @@ public class DemandeResponseDTO {
     private String typeDemande;            // libellé → "NOUVELLE"
     private String statutDemande;          // libellé → "CREE"
     private List<DemandePieceDTO> pieces;
+    private Boolean demandeurExistant;
 }

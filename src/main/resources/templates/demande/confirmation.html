@@ -69,6 +69,11 @@
                     </tr>
                     <tr>
                         <th>Statut</th>
+                        <th>Demandeur existant</th>
+                        <td th:text="${demande.demandeurExistant ? 'Oui' : 'Non'}"></td>
+                    </tr>
+                    <tr>
+                        <th>Statut dossier</th>
                         <td>
                             <span class="badge badge-cree" th:text="${demande.statutDemande}"></span>
                         </td>
