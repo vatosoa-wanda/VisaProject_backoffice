@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulaire Demandeur et Passeport</title>
+    <title>Demande de Visa Transformable</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .section-header {
@@ -25,7 +25,7 @@
 <body>
 
 <div class="container mt-5">
-    <h1 class="mb-4">FORMULAIRE DEMANDEUR ET PASSEPORT</h1>
+    <h1 class="mb-4">DEMANDE DE VISA TRANSFORMABLE</h1>
 
     <!-- Message d'erreur global (BusinessException) -->
     <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -35,6 +35,9 @@
 
     <form th:action="@{/demandes/nouvelle}" th:object="${demandeForm}" method="post" novalidate>
 
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟦 ÉTAT CIVIL (Dev1)                   -->
+        <!-- ═══════════════════════════════════════════ -->
         <div class="section-header">
             <h2>État Civil</h2>
         </div>
@@ -106,6 +109,9 @@
             </div>
         </div>
 
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟩 PASSEPORT (Dev1)                    -->
+        <!-- ═══════════════════════════════════════════ -->
         <div class="section-header">
             <h2>Passeport</h2>
         </div>
@@ -129,6 +135,84 @@
                 <div th:errors="*{passeportDTO.dateExpiration}" class="alert-error text-danger"></div>
             </div>
         </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟨 VISA TRANSFORMABLE (Dev2)           -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>Visa Transformable</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="referenceVisa" class="form-label">Référence Visa <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="referenceVisa" th:field="*{visaDTO.referenceVisa}" required>
+                <div th:errors="*{visaDTO.referenceVisa}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateEntreeVisa" class="form-label">Date d'entrée <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateEntreeVisa" th:field="*{visaDTO.dateEntree}" required>
+                <div th:errors="*{visaDTO.dateEntree}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="lieuEntree" class="form-label">Lieu d'entrée <span class="badge-obligatoire">*</span></label>
+                <input type="text" class="form-control" id="lieuEntree" th:field="*{visaDTO.lieuEntree}" required>
+                <div th:errors="*{visaDTO.lieuEntree}" class="alert-error text-danger"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="dateExpirationVisa" class="form-label">Date d'expiration visa <span class="badge-obligatoire">*</span></label>
+                <input type="date" class="form-control" id="dateExpirationVisa" th:field="*{visaDTO.dateExpiration}" required>
+                <div th:errors="*{visaDTO.dateExpiration}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟥 DEMANDE (Dev2)                      -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>Demande</h2>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="typeVisa" class="form-label">Type de visa <span class="badge-obligatoire">*</span></label>
+                <select class="form-select" id="typeVisa" th:field="*{idTypeVisa}" required>
+                    <option value="">-- Sélectionner --</option>
+                    <option th:each="tv : ${typesVisa}" th:value="${tv.id}" th:text="${tv.libelle}"></option>
+                </select>
+                <div th:errors="*{idTypeVisa}" class="alert-error text-danger"></div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BLOC 🟪 PIÈCES À FOURNIR (Dev2)             -->
+        <!-- ═══════════════════════════════════════════ -->
+        <div class="section-header">
+            <h2>Pièces à fournir</h2>
+        </div>
+
+        <!-- Pièces communes : affichées statiquement -->
+        <h4>Pièces communes</h4>
+        <div id="piecesCommunes">
+            <div th:each="piece : ${piecesCommunes}" class="form-check">
+                <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'piece_' + ${piece.id}">
+                <label class="form-check-label" th:for="'piece_' + ${piece.id}">
+                    <span th:text="${piece.nom}"></span>
+                    <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Pièces spécifiques : chargées dynamiquement par AJAX -->
+        <h4 style="margin-top: 20px;">Pièces spécifiques</h4>
+        <div id="pieces-specifiques">
+            <!-- Contenu injecté par JavaScript -->
+        </div>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- BOUTONS                                     -->
+        <!-- ═══════════════════════════════════════════ -->
         <div class="form-actions mt-4">
             <button type="submit" class="btn btn-primary">ENREGISTRER</button>
             <a th:href="@{/}" class="btn btn-secondary">ANNULER</a>
@@ -137,7 +221,60 @@
     </form>
 </div>
 
+<!-- ═══════════════════════════════════════════════ -->
+<!-- JAVASCRIPT : chargement dynamique des pièces   -->
+<!-- ═══════════════════════════════════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.getElementById('typeVisa').addEventListener('change', function () {
+        const idTypeVisa = this.value;
+        const container = document.getElementById('pieces-specifiques');
+        container.innerHTML = '';  // vider le bloc précédent
+
+        if (!idTypeVisa) return;
+
+        fetch('/demandes/pieces?idTypeVisa=' + idTypeVisa)
+            .then(response => response.json())
+            .then(pieces => {
+                if (pieces.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Aucune pièce spécifique requise</p>';
+                    return;
+                }
+
+                pieces.forEach(piece => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'piecesFournies';
+                    checkbox.value = piece.id;
+                    checkbox.id = 'spec_piece_' + piece.id;
+                    checkbox.className = 'form-check-input';
+
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = 'spec_piece_' + piece.id;
+                    label.textContent = piece.nom;
+
+                    if (piece.obligatoire) {
+                        const span = document.createElement('span');
+                        span.className = 'badge-obligatoire';
+                        span.textContent = ' *';
+                        label.appendChild(span);
+                    }
+
+                    div.appendChild(checkbox);
+                    div.appendChild(label);
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => {
+                console.error('Erreur chargement pièces:', err);
+                container.innerHTML = '<p class="alert alert-danger">Erreur lors du chargement des pièces</p>';
+            });
+    });
+</script>
 
 </body>
 </html>
