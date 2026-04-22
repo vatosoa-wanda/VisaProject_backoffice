@@ -170,7 +170,7 @@ public class DemandeController {
         }
 
         try {
-            DemandeResponseDTO response = demandeService.modifierDemande(id, dto);
+            DemandeResponseDTO response = demandeService.updateDemande(id, dto);
             redirectAttributes.addFlashAttribute("successMessage", "Demande modifiée avec succès. ID : #" + response.getId());
             return "redirect:/demandes/" + response.getId() + "/editer-confirmation";
 

@@ -1859,7 +1859,7 @@ src/main/resources/templates/demande/
 
 ### Fichiers à MODIFIER
 
-- `DemandeService.java` : ajouter `modifierDemande()`, `getDemandePourEdition()`
+- `DemandeService.java` : ajouter `updateDemande()`, `getDemandePourEdition()`
 - `DemandeMapper.java` : ajouter mapping pour edition
 - `DemandeController.java` : ajouter endpoints GET/POST pour édition
 - `DemandeRepository.java` : aucune modification (méthodes existantes suffisent)
@@ -2038,7 +2038,7 @@ public DemandeUpdateDTO getDemandePourEdition(Long id) {
 }
 
 // ════════════════════════════════════════════════════════
-//  MÉTHODE PRINCIPALE : modifierDemande()
+//  MÉTHODE PRINCIPALE : updateDemande()
 // ════════════════════════════════════════════════════════
 
 /**
@@ -2067,7 +2067,7 @@ public DemandeUpdateDTO getDemandePourEdition(Long id) {
  * @throws BusinessException si règle métier violée
  * @throws ResourceNotFoundException si demande absente
  */
-public DemandeResponseDTO modifierDemande(Long id, DemandeUpdateDTO dto) {
+public DemandeResponseDTO updateDemande(Long id, DemandeUpdateDTO dto) {
 
     // ÉTAPE 1 — Récupérer la demande existante
     Demande demande = demandeRepository.findById(id)
@@ -2185,7 +2185,7 @@ class DemandeServiceUpdateTest {
 
     // ── Test 9.4.1 — Modification complète OK ──────────────────────────
     @Test
-    void modifierDemande_OK() {
+    void updateDemande_OK() {
         Long demandeId = 1L;
         Demande demande = buildDemandeComplete();
         DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
@@ -2200,7 +2200,7 @@ class DemandeServiceUpdateTest {
         when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
         when(demandeMapper.toResponseDTO(any())).thenReturn(new DemandeResponseDTO());
 
-        DemandeResponseDTO result = demandeService.modifierDemande(demandeId, dto);
+        DemandeResponseDTO result = demandeService.updateDemande(demandeId, dto);
 
         assertNotNull(result);
         verify(demandePieceRepository, times(1)).deleteByDemandeId(demandeId);
@@ -2209,7 +2209,7 @@ class DemandeServiceUpdateTest {
 
     // ── Test 9.4.2 — Numéro passeport dupliqué → BusinessException ──────
     @Test
-    void modifierDemande_numeroPasSeportDuplique_throwsException() {
+    void updateDemande_numeroPasSeportDuplique_throwsException() {
         Long demandeId = 1L;
         Demande demande = buildDemandeComplete();
         DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
@@ -2217,13 +2217,13 @@ class DemandeServiceUpdateTest {
         when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
         when(passeportRepository.existsByNumero(any())).thenReturn(true);  // dupliqué
 
-        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+        assertThrows(BusinessException.class, () -> demandeService.updateDemande(demandeId, dto));
         verify(demandeRepository, never()).save(any());
     }
 
     // ── Test 9.4.3 — Référence visa dupliquée → BusinessException ──────
     @Test
-    void modifierDemande_referenceVisaDupliquee_throwsException() {
+    void updateDemande_referenceVisaDupliquee_throwsException() {
         Long demandeId = 1L;
         Demande demande = buildDemandeComplete();
         DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
@@ -2233,12 +2233,12 @@ class DemandeServiceUpdateTest {
         when(visaTransformableRepository.findByReferenceVisa(any()))
             .thenReturn(Optional.of(new VisaTransformable()));  // dupliqué
 
-        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+        assertThrows(BusinessException.class, () -> demandeService.updateDemande(demandeId, dto));
     }
 
     // ── Test 9.4.4 — Dates incohérentes (passeport) → BusinessException ──
     @Test
-    void modifierDemande_datesIncohererentes_throwsException() {
+    void updateDemande_datesIncohererentes_throwsException() {
         Long demandeId = 1L;
         Demande demande = buildDemandeComplete();
         DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
@@ -2247,7 +2247,7 @@ class DemandeServiceUpdateTest {
 
         when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
 
-        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+        assertThrows(BusinessException.class, () -> demandeService.updateDemande(demandeId, dto));
     }
 
     // ── Test 9.4.5 — getDemandePourEdition → DTO édition correct ──────
@@ -2339,7 +2339,7 @@ public String soumettreFormulaireMo dification(
     }
 
     try {
-        DemandeResponseDTO response = demandeService.modifierDemande(id, dto);
+        DemandeResponseDTO response = demandeService.updateDemande(id, dto);
         redirectAttributes.addFlashAttribute("successMessage", "Demande modifiée avec succès. ID : #" + response.getId());
         return "redirect:/demandes/" + response.getId() + "/editer-confirmation";
 
@@ -2411,7 +2411,7 @@ class DemandeControllerUpdateTest {
     void soumettreFormulaireMod ification_OK_redirige() throws Exception {
         DemandeResponseDTO resp = new DemandeResponseDTO();
         resp.setId(1L);
-        when(demandeService.modifierDemande(eq(1L), any())).thenReturn(resp);
+        when(demandeService.updateDemande(eq(1L), any())).thenReturn(resp);
 
         mockMvc.perform(post("/demandes/1/editer").with(csrf())
                    /* params valides */)
@@ -2756,11 +2756,11 @@ void deleteByDemandeId(Long demandeId);
 
 | Code | Règle | Implémentée dans |
 |------|-------|-----------------|
-| RG-11 | Lors de la modification, les relations `demande_piece` sont recréées | `DemandeService.modifierDemande()` |
+| RG-11 | Lors de la modification, les relations `demande_piece` sont recréées | `DemandeService.updateDemande()` |
 | RG-12 | `dateDemande`, `idDemandeur`, `typeDemande` sont immutables (non modifiables) | `DemandeUpdateDTO`, `DemandeService` |
-| RG-13 | Les validations existantes (unicité, cohérence des dates) s'appliquent lors de la modification | `DemandeService.modifierDemande()` |
+| RG-13 | Les validations existantes (unicité, cohérence des dates) s'appliquent lors de la modification | `DemandeService.updateDemande()` |
 | RG-14 | Un historique statut est créé si le statut change (futur) | `DemandeService.creerHistoriqueStatut()` |
-| RG-15 | Le demandeur : seuls les champs modifiables sont altérables (nom/dateNaissance/nationalité bloqués) | `DemandeurUpdateDTO`, `DemandeService.modifierDemande()` |
+| RG-15 | Le demandeur : seuls les champs modifiables sont altérables (nom/dateNaissance/nationalité bloqués) | `DemandeurUpdateDTO`, `DemandeService.updateDemande()` |
 
 ---
 
@@ -2801,7 +2801,7 @@ GET  http://localhost:8080/demandes/{idDemande}/editer-confirmation
 ### À MODIFIER
 
 1. `src/main/java/com/visa/backoffice/mapper/DemandeMapper.java` (ajouter `toUpdateDTO()`)
-2. `src/main/java/com/visa/backoffice/service/DemandeService.java` (ajouter `modifierDemande()`, `getDemandePourEdition()`)
+2. `src/main/java/com/visa/backoffice/service/DemandeService.java` (ajouter `updateDemande()`, `getDemandePourEdition()`)
 3. `src/main/java/com/visa/backoffice/controller/DemandeController.java` (ajouter 3 endpoints)
 4. `src/main/java/com/visa/backoffice/repository/DemandePieceRepository.java` (ajouter `deleteByDemandeId()`)
 
@@ -2826,7 +2826,7 @@ Semaine 2 (identique)
 Semaine 3 (NOUVELLE : MODIFICATION)
   ├─ Étape 9.2 : DTOs édition (DemandeUpdateDTO + DemandeurUpdateDTO)
   ├─ Étape 9.3 : Extension Mapper (toUpdateDTO)
-  ├─ Étape 9.4 : Extension Service (modifierDemande, getDemandePourEdition) + Tests
+  ├─ Étape 9.4 : Extension Service (updateDemande, getDemandePourEdition) + Tests
   ├─ Étape 9.5 : Extension Controller (endpoints édition) + Tests
   ├─ Étape 9.6 : Templates editer.html + editer-confirmation.html
   └─ Étape 9.7 : Extension Repository (deleteByDemandeId)

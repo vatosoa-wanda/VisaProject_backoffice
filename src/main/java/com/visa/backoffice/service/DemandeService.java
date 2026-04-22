@@ -258,7 +258,7 @@ public class DemandeService {
      * @throws BusinessException si règle métier violée
      * @throws ResourceNotFoundException si demande absente
      */
-    public DemandeResponseDTO modifierDemande(Long id, DemandeUpdateDTO dto) {
+    public DemandeResponseDTO updateDemande(Long id, DemandeUpdateDTO dto) {
 
         // ÉTAPE 1 — Récupérer la demande existante
         Demande demande = demandeRepository.findById(id)
