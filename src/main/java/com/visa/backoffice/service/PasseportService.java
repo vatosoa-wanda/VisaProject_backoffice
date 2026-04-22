@@ -59,4 +59,18 @@ public class PasseportService {
 
         return passeportRepository.save(passeport);
     }
+
+    public Passeport modifier(Passeport passeport, PasseportDTO dto) {
+        // Unicité du numéro (sauf si on garde le même passeport)
+        passeportRepository.findByNumero(dto.getNumero())
+                .filter(existing -> !existing.getId().equals(passeport.getId()))
+                .ifPresent(existing -> {
+                    throw new BusinessException("Le numéro de passeport '" + dto.getNumero() + "' est déjà utilisé.");
+                });
+
+        passeport.setNumero(dto.getNumero());
+        passeport.setDateDelivrance(dto.getDateDelivrance());
+        passeport.setDateExpiration(dto.getDateExpiration());
+        return passeportRepository.save(passeport);
+    }
 }

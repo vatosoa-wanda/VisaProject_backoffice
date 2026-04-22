@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -353,5 +354,118 @@ public class DemandeService {
         // ÉTAPE 8 — Recharger avec pièces et retourner DTO
         Demande demandeFinal = demandeRepository.findById(demande.getId()).orElseThrow();
         return demandeMapper.toResponseDTO(demandeFinal);
+    }
+
+    /**
+     * Récupère toutes les demandes.
+     *
+     * @return  liste de toutes les DemandeResponseDTO
+     */
+    public List<DemandeResponseDTO> getToutesDemandes() {
+        return demandeRepository.findAll()
+                .stream()
+                .map(demandeMapper::toResponseDTO)
+                .toList();
+    }
+
+    /**
+     * Supprime une demande (et ses dépendances en cascade).
+     *
+     * @param id  id de la demande
+     * @throws ResourceNotFoundException si demande absente
+     */
+    public void supprimerDemande(Long id) {
+        Demande demande = demandeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
+
+        // Supprimer les historiques
+        historiqueStatutRepository.deleteAll(demande.getHistoriques());
+
+        // Supprimer les pièces
+        demandePieceRepository.deleteAll(demande.getDemandePieces());
+
+        // Supprimer la demande
+        demandeRepository.delete(demande);
+    }
+
+    public DemandeCreateDTO getDemandePourModification(Long id) {
+        Demande demande = demandeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
+
+        if (demande.getDemandeur() == null || demande.getVisaTransformable() == null || demande.getVisaTransformable().getPasseport() == null) {
+            throw new BusinessException("La demande est incomplète et ne peut pas être modifiée via le formulaire.");
+        }
+
+        Demandeur demandeur = demande.getDemandeur();
+        Passeport passeport = demande.getVisaTransformable().getPasseport();
+        VisaTransformable visa = demande.getVisaTransformable();
+
+        DemandeurDTO demandeurDTO = DemandeurDTO.builder()
+                .nom(demandeur.getNom())
+                .prenom(demandeur.getPrenom())
+                .nomJeuneFille(demandeur.getNomJeuneFille())
+                .dateNaissance(demandeur.getDateNaissance())
+                .lieuNaissance(demandeur.getLieuNaissance())
+                .idSituationFamiliale(demandeur.getSituationFamiliale() != null ? demandeur.getSituationFamiliale().getId() : null)
+                .idNationalite(demandeur.getNationalite() != null ? demandeur.getNationalite().getId() : null)
+                .adresseMadagascar(demandeur.getAdresseMadagascar())
+                .telephone(demandeur.getTelephone())
+                .email(demandeur.getEmail())
+                .build();
+
+        PasseportDTO passeportDTO = PasseportDTO.builder()
+                .numero(passeport.getNumero())
+                .dateDelivrance(passeport.getDateDelivrance())
+                .dateExpiration(passeport.getDateExpiration())
+                .build();
+
+        VisaTransformableDTO visaDTO = VisaTransformableDTO.builder()
+                .referenceVisa(visa.getReferenceVisa())
+                .dateEntree(visa.getDateEntree())
+                .lieuEntree(visa.getLieuEntree())
+                .dateExpiration(visa.getDateExpiration())
+                .build();
+
+        List<Long> piecesFournies = demande.getDemandePieces() == null ? List.of() :
+                demande.getDemandePieces().stream()
+                        .filter(dp -> Boolean.TRUE.equals(dp.getFourni()))
+                        .map(dp -> dp.getPiece() != null ? dp.getPiece().getId() : null)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+        return DemandeCreateDTO.builder()
+                .demandeurDTO(demandeurDTO)
+                .passeportDTO(passeportDTO)
+                .visaDTO(visaDTO)
+                .idTypeVisa(demande.getTypeVisa() != null ? demande.getTypeVisa().getId() : null)
+                .piecesFournies(piecesFournies)
+                .build();
+    }
+
+    public DemandeResponseDTO modifierDemande(Long id, DemandeCreateDTO dto) {
+        Demande demande = demandeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
+
+        if (demande.getDemandeur() == null || demande.getVisaTransformable() == null || demande.getVisaTransformable().getPasseport() == null) {
+            throw new BusinessException("La demande est incomplète et ne peut pas être modifiée via le formulaire.");
+        }
+
+        // TypeVisa
+        TypeVisa typeVisa = typeVisaRepository.findById(dto.getIdTypeVisa())
+                .orElseThrow(() -> new ResourceNotFoundException("TypeVisa introuvable : id=" + dto.getIdTypeVisa()));
+        demande.setTypeVisa(typeVisa);
+
+        // Demandeur / Passeport / VisaTransformable
+        demandeurService.modifier(demande.getDemandeur(), dto.getDemandeurDTO());
+        passeportService.modifier(demande.getVisaTransformable().getPasseport(), dto.getPasseportDTO());
+        visaTransformableService.modifier(demande.getVisaTransformable(), dto.getVisaDTO());
+
+        demandeRepository.save(demande);
+
+        // Pièces (recalculées sur le typeVisa courant)
+        demandePieceRepository.deleteAll(demande.getDemandePieces());
+        lierPiecesADemande(demande, dto.getPiecesFournies(), typeVisa);
+
+        return demandeMapper.toResponseDTO(demande);
     }
 }
