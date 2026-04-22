@@ -60,4 +60,22 @@ public class VisaTransformableService {
     public boolean existeParReference(String referenceVisa) {
         return visaTransformableRepository.findByReferenceVisa(referenceVisa).isPresent();
     }
+
+    public VisaTransformable modifier(VisaTransformable visaTransformable, VisaTransformableDTO dto) {
+        visaTransformableRepository.findByReferenceVisa(dto.getReferenceVisa())
+                .filter(existing -> !existing.getId().equals(visaTransformable.getId()))
+                .ifPresent(existing -> {
+                    throw new BusinessException("La référence visa '" + dto.getReferenceVisa() + "' est déjà utilisée.");
+                });
+
+        if (!dto.getDateExpiration().isAfter(dto.getDateEntree())) {
+            throw new BusinessException("La date d'expiration doit être postérieure à la date d'entrée.");
+        }
+
+        visaTransformable.setReferenceVisa(dto.getReferenceVisa());
+        visaTransformable.setDateEntree(dto.getDateEntree());
+        visaTransformable.setLieuEntree(dto.getLieuEntree());
+        visaTransformable.setDateExpiration(dto.getDateExpiration());
+        return visaTransformableRepository.save(visaTransformable);
+    }
 }
