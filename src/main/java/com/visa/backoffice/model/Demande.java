@@ -26,11 +26,11 @@ public class Demande {
     @JoinColumn(name = "id_demandeur", nullable = false)
     private Demandeur demandeur;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_visa_transformable")
     private VisaTransformable visaTransformable;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_type_visa")
     private TypeVisa typeVisa;
 

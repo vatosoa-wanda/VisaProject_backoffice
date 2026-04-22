@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Confirmation de Modification</title>
+    <style>
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table th, table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-cree {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .badge-ok {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-nok {
+            background-color: #dc3545;
+            color: white;
+        }
+        .actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .actions a {
+            margin: 0 10px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .actions a:first-child {
+            background-color: #007bff;
+            color: white;
+        }
+        .actions a:first-child:hover {
+            background-color: #0056b3;
+        }
+        .actions a:last-child {
+            background-color: #6c757d;
+            color: white;
+        }
+        .actions a:last-child:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+
+<h1 th:if="${isModification}">Demande modifiée avec succès</h1>
+<h1 th:unless="${isModification}">Demande enregistrée avec succès</h1>
+
+<!-- Message flash -->
+<div th:if="${successMessage}" class="alert alert-success">
+    <span th:text="${successMessage}"></span>
+</div>
+
+<section id="recap-demande">
+    <h2>Récapitulatif</h2>
+    <table>
+        <tr>
+            <th>Numéro de demande</th>
+            <td th:text="${demande.id}"></td>
+        </tr>
+        <tr>
+            <th>Date de demande</th>
+            <td th:text="${demande.dateDemande}"></td>
+        </tr>
+        <tr>
+            <th>Demandeur</th>
+            <td th:text="${demande.nomDemandeur + ' ' + demande.prenomDemandeur}"></td>
+        </tr>
+        <tr>
+            <th>Passeport</th>
+            <td th:text="${demande.numeroPasSeport}"></td>
+        </tr>
+        <tr>
+            <th>Référence Visa</th>
+            <td th:text="${demande.referenceVisa}"></td>
+        </tr>
+        <tr>
+            <th>Type de Visa</th>
+            <td th:text="${demande.typeVisa}"></td>
+        </tr>
+        <tr>
+            <th>Type de Demande</th>
+            <td th:text="${demande.typeDemande}"></td>
+        </tr>
+        <tr>
+            <th>Statut</th>
+            <td>
+                <span class="badge badge-cree" th:text="${demande.statutDemande}"></span>
+            </td>
+        </tr>
+    </table>
+</section>
+
+<section id="recap-pieces">
+    <h2>Pièces associées</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Pièce</th>
+                <th>Obligatoire</th>
+                <th>Fournie</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="piece : ${demande.pieces}">
+                <td th:text="${piece.nomPiece}"></td>
+                <td th:text="${piece.obligatoire ? 'Oui' : 'Non'}"></td>
+                <td>
+                    <span th:if="${piece.fourni}" class="badge badge-ok">✔</span>
+                    <span th:unless="${piece.fourni}" class="badge badge-nok">✗</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<div class="actions">
+    <a th:if="${isModification}" th:href="@{/demandes/{id}/editer(id=${demande.id})}">Éditer à nouveau</a>
+    <a th:href="@{/}">Retour à l'accueil</a>
+</div>
+
+</body>
+</html>

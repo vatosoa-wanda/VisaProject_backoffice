@@ -1,12 +1,11 @@
 package com.visa.backoffice.mapper;
 
-import com.visa.backoffice.dto.DemandePieceDTO;
-import com.visa.backoffice.dto.DemandeResponseDTO;
-import com.visa.backoffice.dto.PieceDTO;
-import com.visa.backoffice.model.Demande;
-import com.visa.backoffice.model.Piece;
+import com.visa.backoffice.dto.*;
+import com.visa.backoffice.model.*;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
@@ -76,6 +75,75 @@ public class DemandeMapper {
         if (piece.getTypePiece() != null) {
             dto.setTypePiece(piece.getTypePiece().getCode());
         }
+        return dto;
+    }
+
+    /**
+     * Convertit une Demande persistée en DTO d'édition.
+     * Inclut les données actuelles pour affichage et modification.
+     *
+     * @param demande   entité persistée avec toutes les relations
+     * @return          DemandeUpdateDTO avec données actuelles
+     */
+    public DemandeUpdateDTO toUpdateDTO(Demande demande) {
+        DemandeUpdateDTO dto = new DemandeUpdateDTO();
+
+        // Demandeur (partiellement)
+        DemandeurUpdateDTO demandeurUpdateDTO = new DemandeurUpdateDTO();
+        if (demande.getDemandeur() != null) {
+            demandeurUpdateDTO.setNomImmutable(demande.getDemandeur().getNom());
+            demandeurUpdateDTO.setDateNaissanceImmutable(demande.getDemandeur().getDateNaissance());
+            if (demande.getDemandeur().getNationalite() != null) {
+                demandeurUpdateDTO.setNationaliteImmutable(demande.getDemandeur().getNationalite().getLibelle());
+            }
+            demandeurUpdateDTO.setPrenom(demande.getDemandeur().getPrenom());
+            demandeurUpdateDTO.setNomJeuneFille(demande.getDemandeur().getNomJeuneFille());
+            demandeurUpdateDTO.setLieuNaissance(demande.getDemandeur().getLieuNaissance());
+            demandeurUpdateDTO.setAdresseMadagascar(demande.getDemandeur().getAdresseMadagascar());
+            demandeurUpdateDTO.setTelephone(demande.getDemandeur().getTelephone());
+            demandeurUpdateDTO.setEmail(demande.getDemandeur().getEmail());
+            if (demande.getDemandeur().getSituationFamiliale() != null) {
+                demandeurUpdateDTO.setIdSituationFamiliale(demande.getDemandeur().getSituationFamiliale().getId());
+            }
+        }
+        dto.setDemandeurDTO(demandeurUpdateDTO);
+
+        // Passeport
+        PasseportDTO passeportDTO = new PasseportDTO();
+        if (demande.getVisaTransformable() != null && demande.getVisaTransformable().getPasseport() != null) {
+            Passeport passeport = demande.getVisaTransformable().getPasseport();
+            passeportDTO.setNumero(passeport.getNumero());
+            passeportDTO.setDateDelivrance(passeport.getDateDelivrance());
+            passeportDTO.setDateExpiration(passeport.getDateExpiration());
+        }
+        dto.setPasseportDTO(passeportDTO);
+
+        // VisaTransformable
+        VisaTransformableDTO visaDTO = new VisaTransformableDTO();
+        if (demande.getVisaTransformable() != null) {
+            VisaTransformable visa = demande.getVisaTransformable();
+            visaDTO.setReferenceVisa(visa.getReferenceVisa());
+            visaDTO.setDateEntree(visa.getDateEntree());
+            visaDTO.setLieuEntree(visa.getLieuEntree());
+            visaDTO.setDateExpiration(visa.getDateExpiration());
+        }
+        dto.setVisaDTO(visaDTO);
+
+        // Type Visa
+        if (demande.getTypeVisa() != null) {
+            dto.setIdTypeVisa(demande.getTypeVisa().getId());
+        }
+
+        // Pièces fournies
+        List<Long> piecesFournies = new ArrayList<>();
+        if (demande.getDemandePieces() != null) {
+            piecesFournies = demande.getDemandePieces().stream()
+                .filter(DemandePiece::getFourni)
+                .map(dp -> dp.getPiece().getId())
+                .collect(Collectors.toList());
+        }
+        dto.setPiecesFournies(piecesFournies);
+
         return dto;
     }
 }

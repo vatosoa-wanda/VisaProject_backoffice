@@ -1,8 +1,6 @@
 package com.visa.backoffice.controller;
 
-import com.visa.backoffice.dto.DemandeCreateDTO;
-import com.visa.backoffice.dto.DemandeResponseDTO;
-import com.visa.backoffice.dto.PieceDTO;
+import com.visa.backoffice.dto.*;
 import com.visa.backoffice.exception.BusinessException;
 import com.visa.backoffice.repository.NationaliteRepository;
 import com.visa.backoffice.repository.SituationFamilialeRepository;
@@ -113,4 +111,90 @@ public class DemandeController {
         model.addAttribute("demande", demande);
         return "demande/confirmation";
     }
+
+    // ════════════════════════════════════════════════════════
+    //  ENDPOINTS POUR LA MODIFICATION (ÉTAPE 9)
+    // ════════════════════════════════════════════════════════
+
+    /**
+     * GET /demandes/{id}/editer
+     * Afficher le formulaire de modification
+     */
+    @GetMapping("/{id}/editer")
+    public String afficherFormulaireEdition(
+            @PathVariable Long id,
+            Model model) {
+
+        DemandeUpdateDTO demande = demandeService.getDemandePourEdition(id);
+        model.addAttribute("demandeId", id);
+        model.addAttribute("demandeForm", demande);
+        model.addAttribute("typesVisa", typeVisaRepository.findAll());
+        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+        return "demande/editer";
+    }
+
+    /**
+     * GET /demandes/{id}/editer-pieces?idTypeVisa=1
+     * AJAX : retourner les pièces spécifiques en JSON
+     */
+    @GetMapping("/{id}/editer-pieces")
+    @ResponseBody
+    public ResponseEntity<List<PieceDTO>> getPiecesEdition(
+            @PathVariable Long id,
+            @RequestParam Long idTypeVisa) {
+
+        List<PieceDTO> pieces = demandeService.getPiecesFormulaire(idTypeVisa);
+        return ResponseEntity.ok(pieces);
+    }
+
+    /**
+     * POST /demandes/{id}/editer
+     * Soumettre et enregistrer la modification
+     */
+    @PostMapping("/{id}/editer")
+    public String soumettreFormulaireModification(
+            @PathVariable Long id,
+            @Valid @ModelAttribute("demandeForm") DemandeUpdateDTO dto,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        // Si erreurs de validation Bean Validation
+        if (result.hasErrors()) {
+            model.addAttribute("demandeId", id);
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            return "demande/editer";
+        }
+
+        try {
+            DemandeResponseDTO response = demandeService.modifierDemande(id, dto);
+            redirectAttributes.addFlashAttribute("successMessage", "Demande modifiée avec succès. ID : #" + response.getId());
+            return "redirect:/demandes/" + response.getId() + "/editer-confirmation";
+
+        } catch (BusinessException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("demandeId", id);
+            model.addAttribute("demandeForm", dto);
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            return "demande/editer";
+        }
+    }
+
+    /**
+     * GET /demandes/{id}/editer-confirmation
+     * Page de confirmation post-modification
+     */
+    @GetMapping("/{id}/editer-confirmation")
+    public String afficherConfirmationEdition(@PathVariable Long id, Model model) {
+        DemandeResponseDTO demande = demandeService.getDemande(id);
+        model.addAttribute("demande", demande);
+        model.addAttribute("isModification", true);
+        return "demande/editer-confirmation";
+    }
 }
+

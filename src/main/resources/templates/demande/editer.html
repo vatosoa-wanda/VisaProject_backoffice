@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Modifier une Demande</title>
+    <style>
+        .field-immutable {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .field-immutable input {
+            background-color: #e8e8e8;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-actions {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .form-actions button, .form-actions a {
+            margin: 0 10px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .form-actions button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .form-actions button:hover {
+            background-color: #218838;
+        }
+        .form-actions a {
+            background-color: #6c757d;
+            color: white;
+        }
+        .form-actions a:hover {
+            background-color: #5a6268;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>MODIFICATION DE DEMANDE DE VISA TRANSFORMABLE</h1>
+
+<!-- Message d'erreur -->
+<div th:if="${errorMessage}" class="alert alert-danger">
+    <span th:text="${errorMessage}"></span>
+</div>
+
+<form th:action="@{/demandes/{id}/editer(id=${demandeId})}" th:object="${demandeForm}" method="post">
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟦 ÉTAT CIVIL                         -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section class="section" id="etat-civil">
+        <h2>État Civil</h2>
+
+        <!-- Champs IMMUTABLES (affichage seul) -->
+        <div class="field-immutable">
+            <label><strong>Nom (IMMUTABLE)</strong></label>
+            <input type="text" th:value="*{demandeurDTO.nomImmutable}" readonly />
+        </div>
+
+        <div class="field-immutable">
+            <label><strong>Date de naissance (IMMUTABLE)</strong></label>
+            <input type="date" th:field="*{demandeurDTO.dateNaissanceImmutable}" readonly />
+        </div>
+
+        <div class="field-immutable">
+            <label><strong>Nationalité (IMMUTABLE)</strong></label>
+            <input type="text" th:value="*{demandeurDTO.nationaliteImmutable}" readonly />
+        </div>
+
+        <!-- Champs modifiables -->
+        <label>Prénom</label>
+        <input type="text" th:field="*{demandeurDTO.prenom}" />
+
+        <label>Nom jeune fille</label>
+        <input type="text" th:field="*{demandeurDTO.nomJeuneFille}" />
+
+        <label>Lieu de naissance</label>
+        <input type="text" th:field="*{demandeurDTO.lieuNaissance}" />
+
+        <label>Situation familiale</label>
+        <select th:field="*{demandeurDTO.idSituationFamiliale}">
+            <option value="">-- Sélectionner --</option>
+            <option th:each="sf : ${situationsFamiliales}"
+                    th:value="${sf.id}"
+                    th:text="${sf.libelle}">
+            </option>
+        </select>
+
+        <label><strong>Adresse Madagascar (O)</strong></label>
+        <textarea th:field="*{demandeurDTO.adresseMadagascar}" required></textarea>
+        <span th:errors="*{demandeurDTO.adresseMadagascar}" style="color: red;"></span>
+
+        <label><strong>Téléphone (O)</strong></label>
+        <input type="tel" th:field="*{demandeurDTO.telephone}" required />
+        <span th:errors="*{demandeurDTO.telephone}" style="color: red;"></span>
+
+        <label>Email</label>
+        <input type="email" th:field="*{demandeurDTO.email}" />
+        <span th:errors="*{demandeurDTO.email}" style="color: red;"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟩 PASSEPORT                          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section class="section" id="passeport">
+        <h2>Passeport</h2>
+
+        <label><strong>Numéro (O, U)</strong></label>
+        <input type="text" th:field="*{passeportDTO.numero}" required />
+        <span th:errors="*{passeportDTO.numero}" style="color: red;"></span>
+
+        <!-- Date de délivrance du passeport -->
+        <label><strong>Date de délivrance (O)</strong></label>
+        <input type="date" th:field="*{passeportDTO.dateDelivrance}" required />
+        <span th:errors="*{passeportDTO.dateDelivrance}" style="color: red;"></span>
+
+        <!-- Date d'expiration du passeport -->
+        <label><strong>Date d'expiration (O)</strong></label>
+        <input type="date" th:field="*{passeportDTO.dateExpiration}" required />
+        <span th:errors="*{passeportDTO.dateExpiration}" style="color: red;"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟨 VISA TRANSFORMABLE                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section class="section" id="visa-transformable">
+        <h2>Visa Transformable</h2>
+
+        <label><strong>Référence Visa (O, U)</strong></label>
+        <input type="text" th:field="*{visaDTO.referenceVisa}" required />
+        <span th:errors="*{visaDTO.referenceVisa}" style="color: red;"></span>
+
+        <label><strong>Date d'entrée (O)</strong></label>
+        <input type="date" th:field="*{visaDTO.dateEntree}" required />
+        <span th:errors="*{visaDTO.dateEntree}" style="color: red;"></span>
+
+        <label><strong>Lieu d'entrée (O)</strong></label>
+        <input type="text" th:field="*{visaDTO.lieuEntree}" required />
+        <span th:errors="*{visaDTO.lieuEntree}" style="color: red;"></span>
+
+        <label><strong>Date d'expiration visa (O)</strong></label>
+        <input type="date" th:field="*{visaDTO.dateExpiration}" required />
+        <span th:errors="*{visaDTO.dateExpiration}" style="color: red;"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟥 DEMANDE                            -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section class="section" id="demande">
+        <h2>Demande</h2>
+
+        <label><strong>Type de visa (O)</strong></label>
+        <select id="selectTypeVisa" th:field="*{idTypeVisa}" required>
+            <option value="">-- Sélectionner --</option>
+            <option th:each="tv : ${typesVisa}"
+                    th:value="${tv.id}"
+                    th:text="${tv.libelle}">
+            </option>
+        </select>
+        <span th:errors="*{idTypeVisa}" style="color: red;"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟪 PIÈCES À FOURNIR                   -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section class="section" id="pieces">
+        <h2>Pièces à fournir</h2>
+
+        <h3>Pièces communes</h3>
+        <div th:each="piece : ${piecesCommunes}">
+            <input type="checkbox"
+                   name="piecesFournies"
+                   th:value="${piece.id}"
+                   th:id="'piece_' + ${piece.id}"
+                   th:checked="${#lists.contains(demandeForm.piecesFournies, piece.id)}" />
+            <label th:for="'piece_' + ${piece.id}">
+                <span th:text="${piece.nom}"></span>
+                <span th:if="${piece.obligatoire}" style="color: red;"> *</span>
+            </label>
+        </div>
+
+        <h3>Pièces spécifiques</h3>
+        <div id="pieces-specifiques">
+            <!-- Contenu injecté par JavaScript -->
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BOUTONS                                     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-actions">
+        <button type="submit">ENREGISTRER MODIFICATION</button>
+        <a th:href="@{/demandes/{id}(id=${demandeId})}">ANNULER</a>
+    </div>
+
+</form>
+
+<script th:inline="javascript">
+    const demandeId = /*[[${demandeId}]]*/ null;
+    const selectedPieces = /*[[${demandeForm.piecesFournies}]]*/ [];
+
+    document.getElementById('selectTypeVisa').addEventListener('change', function () {
+        const idTypeVisa = this.value;
+        const container = document.getElementById('pieces-specifiques');
+        container.innerHTML = '';
+
+        if (!idTypeVisa) return;
+
+        fetch('/demandes/' + demandeId + '/editer-pieces?idTypeVisa=' + idTypeVisa)
+            .then(response => response.json())
+            .then(pieces => {
+                pieces.forEach(piece => {
+                    const div = document.createElement('div');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'piecesFournies';
+                    checkbox.value = piece.id;
+                    checkbox.id = 'spec_piece_' + piece.id;
+                    checkbox.checked = selectedPieces.includes(piece.id);
+
+                    const label = document.createElement('label');
+                    label.htmlFor = 'spec_piece_' + piece.id;
+                    label.textContent = piece.nom + (piece.obligatoire ? ' *' : '');
+
+                    div.appendChild(checkbox);
+                    div.appendChild(label);
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => console.error('Erreur chargement pièces:', err));
+    });
+
+    // Recharger les pièces au chargement de la page
+    document.getElementById('selectTypeVisa').dispatchEvent(new Event('change'));
+</script>
+
+</body>
+</html>
+

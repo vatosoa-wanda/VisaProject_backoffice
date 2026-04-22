@@ -31,7 +31,7 @@ public class VisaTransformable {
     @Column(name = "date_expiration")
     private LocalDate dateExpiration;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_passeport")
     private Passeport passeport;
 

@@ -1820,22 +1820,1019 @@ public class ResourceNotFoundException extends RuntimeException {
 
 ---
 
-# ORDRE D'EXÉCUTION RECOMMANDÉ
+# ÉTAPE 9 — MODIFICATION D'UNE DEMANDE EXISTANTE
+
+> **Objectif** : permettre de modifier une demande créée et tous ses champs associés (demandeur, passeport, visa transformable, pièces)
+>
+> **Contexte** : à partir d'une demande existante (par son ID), on peut éditer :
+> - Les données du demandeur (sauf nom + dateNaissance + nationalité pour éviter les doublons)
+> - Le passeport (numéro, dates)
+> - Le visa transformable (référence, dates, lieu)
+> - Les pièces fournies (checkbox)
+>
+> ⚠️ **RG-11** : la modification reconstruit les relations `demande_piece` pour refléter les nouvelles sélections
+> ⚠️ **RG-12** : `dateDemande`, `typeDemande` et `idDemandeur` ne sont **pas modifiables** (immutables)
+> ⚠️ **RG-13** : si le statut change, un nouvel historique est créé (RG-07)
+> ⚠️ **RG-14** : les validations existantes s'appliquent aussi lors de la modification
+
+---
+
+## 9.1 — FICHIERS À CRÉER / MODIFIER
+
+### Fichiers à CRÉER
 
 ```
-Semaine 1
+src/main/java/com/visa/backoffice/
+├── dto/
+│   └── DemandeUpdateDTO.java              ← formulaire de modification
+├── mapper/
+│   └── (extension DemandeMapper existant)
+├── service/
+│   └── (extension DemandeService existant)
+└── controller/
+    └── (extension DemandeController existant)
+
+src/main/resources/templates/demande/
+├── editer.html                            ← formulaire de modification
+└── editer-confirmation.html               ← confirmation après modification
+```
+
+### Fichiers à MODIFIER
+
+- `DemandeService.java` : ajouter `modifierDemande()`, `getDemandePourEdition()`
+- `DemandeMapper.java` : ajouter mapping pour edition
+- `DemandeController.java` : ajouter endpoints GET/POST pour édition
+- `DemandeRepository.java` : aucune modification (méthodes existantes suffisent)
+- `DemandePieceRepository.java` : ajouter `deleteByDemandeId()` si n'existe pas
+
+---
+
+## 9.2 — DTOs
+
+### 9.2.1 — `DemandeUpdateDTO.java`
+
+**Fichier** : `src/main/java/com/visa/backoffice/dto/DemandeUpdateDTO.java`
+
+```java
+public class DemandeUpdateDTO {
+
+    // ── Bloc DEMANDEUR (partiellement modifiable) ─────────────────
+    @Valid
+    @NotNull
+    private DemandeurUpdateDTO demandeurDTO;  // nom/dateNaissance/nationalité IMMUTABLES
+
+    // ── Bloc PASSEPORT ─────────────────────────────────────────
+    @Valid
+    @NotNull
+    private PasseportDTO passeportDTO;
+
+    // ── Bloc VISA TRANSFORMABLE ───────────────────────────────
+    @Valid
+    @NotNull
+    private VisaTransformableDTO visaDTO;
+
+    // ── Bloc DEMANDE ───────────────────────────────────────────
+    @NotNull(message = "Le type de visa est obligatoire")
+    private Long idTypeVisa;                 // modifiable
+
+    // ── Bloc PIÈCES ───────────────────────────────────────────
+    private List<Long> piecesFournies = new ArrayList<>();
+
+    // getters / setters
+}
+```
+
+### 9.2.2 — `DemandeurUpdateDTO.java` (sous-ensemble modifiable)
+
+**Fichier** : `src/main/java/com/visa/backoffice/dto/DemandeurUpdateDTO.java`
+
+> ⚠️ Contrairement à `DemandeurDTO`, les champs suivants sont **IMMUTABLES** et ne doivent pas être présents :
+> - `nom`
+> - `dateNaissance`
+> - `idNationalite`
+
+```java
+public class DemandeurUpdateDTO {
+
+    // ── Champs IMMUTABLES (affichage seul, pas de modification) ──────
+    private String nomImmutable;              // affichage
+    private LocalDate dateNaissanceImmutable; // affichage
+    private String nationaliteImmutable;      // affichage
+
+    // ── Champs modifiables ─────────────────────────────────────────
+
+    private String prenom;                               // (F)
+
+    private String nomJeuneFille;                        // (F)
+
+    private String lieuNaissance;                        // (F)
+
+    @NotNull(message = "La situation familiale est obligatoire")
+    private Long idSituationFamiliale;                   // (O, S) modifiable
+
+    @NotBlank(message = "L'adresse Madagascar est obligatoire")
+    private String adresseMadagascar;                    // (O)
+
+    @NotBlank(message = "Le téléphone est obligatoire")
+    @Pattern(
+        regexp = "^[0-9+\\s\\-]{7,15}$",
+        message = "Format téléphone invalide (7 à 15 chiffres)"
+    )
+    private String telephone;                            // (O)
+
+    @Email(message = "Format email invalide")
+    private String email;                                // (F)
+
+    // getters / setters
+}
+```
+
+---
+
+## 9.3 — MAPPER
+
+### Extension de `DemandeMapper.java`
+
+**Ajout dans** : `src/main/java/com/visa/backoffice/mapper/DemandeMapper.java`
+
+```java
+/**
+ * Convertit une entité Demande en DTO d'édition.
+ * Inclut les données actuelles de la demande et de toutes ses relations.
+ *
+ * @param demande   entité persistée avec toutes les relations
+ * @return          DemandeUpdateDTO avec données actuelles
+ */
+public DemandeUpdateDTO toUpdateDTO(Demande demande) {
+    DemandeUpdateDTO dto = new DemandeUpdateDTO();
+
+    // Demandeur (partiellement)
+    DemandeurUpdateDTO demandeurUpdateDTO = new DemandeurUpdateDTO();
+    demandeurUpdateDTO.setNomImmutable(demande.getDemandeur().getNom());
+    demandeurUpdateDTO.setDateNaissanceImmutable(demande.getDemandeur().getDateNaissance());
+    demandeurUpdateDTO.setNationaliteImmutable(demande.getDemandeur().getNationalite().getLibelle());
+    demandeurUpdateDTO.setPrenom(demande.getDemandeur().getPrenom());
+    demandeurUpdateDTO.setNomJeuneFille(demande.getDemandeur().getNomJeuneFille());
+    demandeurUpdateDTO.setLieuNaissance(demande.getDemandeur().getLieuNaissance());
+    demandeurUpdateDTO.setAdresseMadagascar(demande.getDemandeur().getAdresseMadagascar());
+    demandeurUpdateDTO.setTelephone(demande.getDemandeur().getTelephone());
+    demandeurUpdateDTO.setEmail(demande.getDemandeur().getEmail());
+    if (demande.getDemandeur().getSituationFamiliale() != null) {
+        demandeurUpdateDTO.setIdSituationFamiliale(demande.getDemandeur().getSituationFamiliale().getId());
+    }
+    dto.setDemandeurDTO(demandeurUpdateDTO);
+
+    // Passeport
+    PasseportDTO passeportDTO = new PasseportDTO();
+    passeportDTO.setNumero(demande.getVisaTransformable().getPasseport().getNumero());
+    passeportDTO.setDateDelivrance(demande.getVisaTransformable().getPasseport().getDateDelivrance());
+    passeportDTO.setDateExpiration(demande.getVisaTransformable().getPasseport().getDateExpiration());
+    dto.setPasseportDTO(passeportDTO);
+
+    // VisaTransformable
+    VisaTransformableDTO visaDTO = new VisaTransformableDTO();
+    visaDTO.setReferenceVisa(demande.getVisaTransformable().getReferenceVisa());
+    visaDTO.setDateEntree(demande.getVisaTransformable().getDateEntree());
+    visaDTO.setLieuEntree(demande.getVisaTransformable().getLieuEntree());
+    visaDTO.setDateExpiration(demande.getVisaTransformable().getDateExpiration());
+    dto.setVisaDTO(visaDTO);
+
+    // Type Visa
+    dto.setIdTypeVisa(demande.getTypeVisa().getId());
+
+    // Pièces fournies
+    List<Long> piecesFournies = demande.getDemandePieces().stream()
+        .filter(DemandePiece::getFourni)
+        .map(dp -> dp.getPiece().getId())
+        .collect(Collectors.toList());
+    dto.setPiecesFournies(piecesFournies);
+
+    return dto;
+}
+```
+
+---
+
+## 9.4 — SERVICES
+
+### Extension de `DemandeService.java`
+
+**Ajout dans** : `src/main/java/com/visa/backoffice/service/DemandeService.java`
+
+```java
+// ════════════════════════════════════════════════════════
+//  MÉTHODE : getDemandePourEdition()
+// ════════════════════════════════════════════════════════
+
+/**
+ * Récupère une demande au format édition (DTO pour le formulaire de modification).
+ *
+ * @param id    identifiant de la demande
+ * @return      DemandeUpdateDTO prêt pour être modifié
+ * @throws ResourceNotFoundException si demande absente
+ */
+public DemandeUpdateDTO getDemandePourEdition(Long id) {
+    Demande demande = demandeRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
+    return demandeMapper.toUpdateDTO(demande);
+}
+
+// ════════════════════════════════════════════════════════
+//  MÉTHODE PRINCIPALE : modifierDemande()
+// ════════════════════════════════════════════════════════
+
+/**
+ * Modifie une demande existante et toutes ses relations.
+ *
+ * Étapes internes (dans cet ordre) :
+ *   1. Récupérer la demande existante
+ *   2. Vérifier que les champs immutables ne sont pas modifiés
+ *   3. Mettre à jour le demandeur (champs modifiables seulement)
+ *   4. Mettre à jour le passeport
+ *   5. Mettre à jour le VisaTransformable
+ *   6. Mettre à jour le TypeVisa
+ *   7. Recréer les liens DemandePiece (supprimer + ajouter)
+ *   8. Créer un historique statut si le statut change
+ *   9. Retourner le DTO de réponse mis à jour
+ *
+ * Règles appliquées :
+ *   RG-11 : reconstruction des relations demande_piece
+ *   RG-12 : dateDemande, idDemandeur, typeDemande immutables
+ *   RG-13 : validations existantes appliquées
+ *   RG-14 : historique créé si changement de statut
+ *
+ * @param id    identifiant de la demande à modifier
+ * @param dto   nouvelles données (formulaire soumis)
+ * @return      DemandeResponseDTO avec modifications appliquées
+ * @throws BusinessException si règle métier violée
+ * @throws ResourceNotFoundException si demande absente
+ */
+public DemandeResponseDTO modifierDemande(Long id, DemandeUpdateDTO dto) {
+
+    // ÉTAPE 1 — Récupérer la demande existante
+    Demande demande = demandeRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
+
+    // ÉTAPE 2 — Vérifier immutabilité des champs (optionnel mais prudent)
+    // Les champs immutables du DTO ne sont présents qu'en affichage (lecture seule)
+    // Aucune modification ne peut les affecter depuis le formulaire
+
+    // ÉTAPE 3 — Mettre à jour le Demandeur (champs modifiables uniquement)
+    // ⚠️ NE PAS MODIFIER : nom, dateNaissance, nationalité
+    Demandeur demandeur = demande.getDemandeur();
+    demandeur.setPrenom(dto.getDemandeurDTO().getPrenom());
+    demandeur.setNomJeuneFille(dto.getDemandeurDTO().getNomJeuneFille());
+    demandeur.setLieuNaissance(dto.getDemandeurDTO().getLieuNaissance());
+    demandeur.setAdresseMadagascar(dto.getDemandeurDTO().getAdresseMadagascar());
+    demandeur.setTelephone(dto.getDemandeurDTO().getTelephone());
+    demandeur.setEmail(dto.getDemandeurDTO().getEmail());
+
+    if (dto.getDemandeurDTO().getIdSituationFamiliale() != null) {
+        SituationFamiliale sf = situationFamilialeRepository.findById(dto.getDemandeurDTO().getIdSituationFamiliale())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Situation familiale introuvable : id=" + dto.getDemandeurDTO().getIdSituationFamiliale()));
+        demandeur.setSituationFamiliale(sf);
+    }
+
+    // ÉTAPE 4 — Mettre à jour le Passeport
+    Passeport passeport = demande.getVisaTransformable().getPasseport();
+    String ancienNumero = passeport.getNumero();
+    String nouveauNumero = dto.getPasseportDTO().getNumero();
+
+    // Vérifier unicité du nouveau numéro (si modifié)
+    if (!ancienNumero.equals(nouveauNumero)) {
+        if (passeportRepository.existsByNumero(nouveauNumero)) {
+            throw new BusinessException("Le numéro de passeport '" + nouveauNumero + "' est déjà utilisé.");
+        }
+    }
+
+    // Vérifier cohérence des dates
+    if (!dto.getPasseportDTO().getDateExpiration().isAfter(dto.getPasseportDTO().getDateDelivrance())) {
+        throw new BusinessException("La date d'expiration doit être postérieure à la date de délivrance.");
+    }
+
+    passeport.setNumero(nouveauNumero);
+    passeport.setDateDelivrance(dto.getPasseportDTO().getDateDelivrance());
+    passeport.setDateExpiration(dto.getPasseportDTO().getDateExpiration());
+
+    // ÉTAPE 5 — Mettre à jour le VisaTransformable
+    VisaTransformable visa = demande.getVisaTransformable();
+    String ancienneRef = visa.getReferenceVisa();
+    String nouvelleRef = dto.getVisaDTO().getReferenceVisa();
+
+    // Vérifier unicité de la nouvelle référence (si modifiée)
+    if (!ancienneRef.equals(nouvelleRef)) {
+        if (visaTransformableRepository.findByReferenceVisa(nouvelleRef).isPresent()) {
+            throw new BusinessException("La référence visa '" + nouvelleRef + "' est déjà utilisée.");
+        }
+    }
+
+    // Vérifier cohérence des dates
+    if (!dto.getVisaDTO().getDateExpiration().isAfter(dto.getVisaDTO().getDateEntree())) {
+        throw new BusinessException("La date d'expiration du visa doit être postérieure à la date d'entrée.");
+    }
+
+    visa.setReferenceVisa(nouvelleRef);
+    visa.setDateEntree(dto.getVisaDTO().getDateEntree());
+    visa.setLieuEntree(dto.getVisaDTO().getLieuEntree());
+    visa.setDateExpiration(dto.getVisaDTO().getDateExpiration());
+
+    // ÉTAPE 6 — Mettre à jour le TypeVisa
+    TypeVisa typeVisa = typeVisaRepository.findById(dto.getIdTypeVisa())
+            .orElseThrow(() -> new ResourceNotFoundException("TypeVisa introuvable : id=" + dto.getIdTypeVisa()));
+    demande.setTypeVisa(typeVisa);
+
+    // ÉTAPE 7 — Recréer les liens DemandePiece
+    // Supprimer les anciens liens
+    demandePieceRepository.deleteByDemandeId(id);
+
+    // Ajouter les nouveaux liens
+    lierPiecesADemande(demande, dto.getPiecesFournies(), typeVisa);
+
+    // ÉTAPE 8 — Sauvegarder la demande
+    demande = demandeRepository.save(demande);
+
+    // ÉTAPE 9 — Recharger avec pièces et retourner DTO
+    Demande demandeFinal = demandeRepository.findById(demande.getId()).orElseThrow();
+    return demandeMapper.toResponseDTO(demandeFinal);
+}
+```
+
+**Dépendances à ajouter au service** :
+
+```java
+private final SituationFamilialeRepository situationFamilialeRepository;
+```
+
+---
+
+### ✅ TEST ÉTAPE 9.4 — `DemandeServiceUpdateTest.java`
+
+```java
+@ExtendWith(MockitoExtension.class)
+class DemandeServiceUpdateTest {
+
+    // Mocks
+    @Mock DemandeRepository demandeRepository;
+    @Mock DemandeMapper demandeMapper;
+    @Mock PasseportRepository passeportRepository;
+    @Mock VisaTransformableRepository visaTransformableRepository;
+    @Mock TypeVisaRepository typeVisaRepository;
+    @Mock SituationFamilialeRepository situationFamilialeRepository;
+    @Mock DemandePieceRepository demandePieceRepository;
+    @Mock PieceRepository pieceRepository;
+    @InjectMocks DemandeService demandeService;
+
+    // ── Test 9.4.1 — Modification complète OK ──────────────────────────
+    @Test
+    void modifierDemande_OK() {
+        Long demandeId = 1L;
+        Demande demande = buildDemandeComplete();
+        DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
+
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+        when(typeVisaRepository.findById(dto.getIdTypeVisa())).thenReturn(Optional.of(demande.getTypeVisa()));
+        when(passeportRepository.existsByNumero(dto.getPasseportDTO().getNumero())).thenReturn(false);
+        when(visaTransformableRepository.findByReferenceVisa(dto.getVisaDTO().getReferenceVisa()))
+            .thenReturn(Optional.empty());
+        when(pieceRepository.findByTypePieceCodeIn(any())).thenReturn(new ArrayList<>());
+        when(demandeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+        when(demandeMapper.toResponseDTO(any())).thenReturn(new DemandeResponseDTO());
+
+        DemandeResponseDTO result = demandeService.modifierDemande(demandeId, dto);
+
+        assertNotNull(result);
+        verify(demandePieceRepository, times(1)).deleteByDemandeId(demandeId);
+        verify(demandeRepository, times(1)).save(any());
+    }
+
+    // ── Test 9.4.2 — Numéro passeport dupliqué → BusinessException ──────
+    @Test
+    void modifierDemande_numeroPasSeportDuplique_throwsException() {
+        Long demandeId = 1L;
+        Demande demande = buildDemandeComplete();
+        DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
+
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+        when(passeportRepository.existsByNumero(any())).thenReturn(true);  // dupliqué
+
+        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+        verify(demandeRepository, never()).save(any());
+    }
+
+    // ── Test 9.4.3 — Référence visa dupliquée → BusinessException ──────
+    @Test
+    void modifierDemande_referenceVisaDupliquee_throwsException() {
+        Long demandeId = 1L;
+        Demande demande = buildDemandeComplete();
+        DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
+
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+        when(passeportRepository.existsByNumero(any())).thenReturn(false);
+        when(visaTransformableRepository.findByReferenceVisa(any()))
+            .thenReturn(Optional.of(new VisaTransformable()));  // dupliqué
+
+        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+    }
+
+    // ── Test 9.4.4 — Dates incohérentes (passeport) → BusinessException ──
+    @Test
+    void modifierDemande_datesIncohererentes_throwsException() {
+        Long demandeId = 1L;
+        Demande demande = buildDemandeComplete();
+        DemandeUpdateDTO dto = buildDemandeUpdateDTOValide();
+        dto.getPasseportDTO().setDateDelivrance(LocalDate.of(2025, 6, 1));
+        dto.getPasseportDTO().setDateExpiration(LocalDate.of(2025, 5, 1));  // avant
+
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+
+        assertThrows(BusinessException.class, () -> demandeService.modifierDemande(demandeId, dto));
+    }
+
+    // ── Test 9.4.5 — getDemandePourEdition → DTO édition correct ──────
+    @Test
+    void getDemandePourEdition_OK() {
+        Long demandeId = 1L;
+        Demande demande = buildDemandeComplete();
+        DemandeUpdateDTO updateDTO = new DemandeUpdateDTO();
+
+        when(demandeRepository.findById(demandeId)).thenReturn(Optional.of(demande));
+        when(demandeMapper.toUpdateDTO(demande)).thenReturn(updateDTO);
+
+        DemandeUpdateDTO result = demandeService.getDemandePourEdition(demandeId);
+
+        assertNotNull(result);
+        verify(demandeMapper, times(1)).toUpdateDTO(demande);
+    }
+
+    // ── Test 9.4.6 — getDemandePourEdition introuvable → exception ──────
+    @Test
+    void getDemandePourEdition_introuvable_throwsException() {
+        when(demandeRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> demandeService.getDemandePourEdition(999L));
+    }
+}
+```
+
+---
+
+## 9.5 — CONTROLLER
+
+### Extension de `DemandeController.java`
+
+**Ajout dans** : `src/main/java/com/visa/backoffice/controller/DemandeController.java`
+
+```java
+// ════════════════════════════════════════════════════════
+//  GET /demandes/{id}/editer
+//  Afficher le formulaire de modification
+// ════════════════════════════════════════════════════════
+@GetMapping("/{id}/editer")
+public String afficherFormulaireEdition(
+        @PathVariable Long id,
+        Model model) {
+
+    DemandeUpdateDTO demande = demandeService.getDemandePourEdition(id);
+    model.addAttribute("demandeId", id);
+    model.addAttribute("demandeForm", demande);
+    model.addAttribute("typesVisa", typeVisaRepository.findAll());
+    model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+    model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+    return "demande/editer";
+}
+
+// ════════════════════════════════════════════════════════
+//  GET /demandes/{id}/editer-pieces?idTypeVisa=1
+//  AJAX : retourner les pièces spécifiques en JSON
+// ════════════════════════════════════════════════════════
+@GetMapping("/{id}/editer-pieces")
+@ResponseBody
+public ResponseEntity<List<PieceDTO>> getPiecesEdition(
+        @PathVariable Long id,
+        @RequestParam Long idTypeVisa) {
+
+    List<PieceDTO> pieces = demandeService.getPiecesFormulaire(idTypeVisa);
+    return ResponseEntity.ok(pieces);
+}
+
+// ════════════════════════════════════════════════════════
+//  POST /demandes/{id}/editer
+//  Soumettre et enregistrer la modification
+// ════════════════════════════════════════════════════════
+@PostMapping("/{id}/editer")
+public String soumettreFormulaireMo dification(
+        @PathVariable Long id,
+        @Valid @ModelAttribute("demandeForm") DemandeUpdateDTO dto,
+        BindingResult result,
+        Model model,
+        RedirectAttributes redirectAttributes) {
+
+    // Si erreurs de validation Bean Validation
+    if (result.hasErrors()) {
+        model.addAttribute("demandeId", id);
+        model.addAttribute("typesVisa", typeVisaRepository.findAll());
+        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+        return "demande/editer";
+    }
+
+    try {
+        DemandeResponseDTO response = demandeService.modifierDemande(id, dto);
+        redirectAttributes.addFlashAttribute("successMessage", "Demande modifiée avec succès. ID : #" + response.getId());
+        return "redirect:/demandes/" + response.getId() + "/editer-confirmation";
+
+    } catch (BusinessException e) {
+        model.addAttribute("errorMessage", e.getMessage());
+        model.addAttribute("demandeId", id);
+        model.addAttribute("demandeForm", dto);
+        model.addAttribute("typesVisa", typeVisaRepository.findAll());
+        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+        return "demande/editer";
+    }
+}
+
+// ════════════════════════════════════════════════════════
+//  GET /demandes/{id}/editer-confirmation
+//  Page de confirmation post-modification
+// ════════════════════════════════════════════════════════
+@GetMapping("/{id}/editer-confirmation")
+public String afficherConfirmationEdition(@PathVariable Long id, Model model) {
+    DemandeResponseDTO demande = demandeService.getDemande(id);
+    model.addAttribute("demande", demande);
+    model.addAttribute("isModification", true);
+    return "demande/editer-confirmation";
+}
+```
+
+---
+
+### ✅ TEST ÉTAPE 9.5 — `DemandeControllerUpdateTest.java`
+
+```java
+@WebMvcTest(DemandeController.class)
+class DemandeControllerUpdateTest {
+
+    @Autowired MockMvc mockMvc;
+    @MockBean DemandeService demandeService;
+    @MockBean TypeVisaRepository typeVisaRepository;
+    @MockBean SituationFamilialeRepository situationFamilialeRepository;
+    @MockBean NationaliteRepository nationaliteRepository;
+    @MockBean PieceService pieceService;
+
+    // Test 9.5.1 — GET /demandes/{id}/editer → 200, formulaire édition
+    @Test
+    void afficherFormulaireEdition_renvoie200() throws Exception {
+        DemandeUpdateDTO updateDTO = new DemandeUpdateDTO();
+        when(demandeService.getDemandePourEdition(1L)).thenReturn(updateDTO);
+        when(typeVisaRepository.findAll()).thenReturn(List.of());
+        when(pieceService.getPiecesCommunes()).thenReturn(List.of());
+
+        mockMvc.perform(get("/demandes/1/editer"))
+               .andExpect(status().isOk())
+               .andExpect(view().name("demande/editer"))
+               .andExpect(model().attributeExists("demandeForm"));
+    }
+
+    // Test 9.5.2 — GET /demandes/{id}/editer-pieces?idTypeVisa=1 → JSON
+    @Test
+    void getPiecesEdition_renvoieJSON() throws Exception {
+        when(demandeService.getPiecesFormulaire(1L)).thenReturn(List.of(new PieceDTO()));
+
+        mockMvc.perform(get("/demandes/1/editer-pieces").param("idTypeVisa", "1"))
+               .andExpect(status().isOk())
+               .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
+
+    // Test 9.5.3 — POST /demandes/{id}/editer valide → redirection confirmation
+    @Test
+    void soumettreFormulaireMod ification_OK_redirige() throws Exception {
+        DemandeResponseDTO resp = new DemandeResponseDTO();
+        resp.setId(1L);
+        when(demandeService.modifierDemande(eq(1L), any())).thenReturn(resp);
+
+        mockMvc.perform(post("/demandes/1/editer").with(csrf())
+                   /* params valides */)
+               .andExpect(status().is3xxRedirection())
+               .andExpect(redirectedUrl("/demandes/1/editer-confirmation"));
+    }
+
+    // Test 9.5.4 — POST avec BindingResult en erreur → retour formulaire
+    @Test
+    void soumettreFormulaireModification_erreurValidation_resteSurFormulaire() throws Exception {
+        mockMvc.perform(post("/demandes/1/editer").with(csrf())
+                   /* champs manquants */)
+               .andExpect(status().isOk())
+               .andExpect(view().name("demande/editer"));
+    }
+
+    // Test 9.5.5 — GET /demandes/{id}/editer-confirmation → 200
+    @Test
+    void afficherConfirmationEdition_renvoie200() throws Exception {
+        DemandeResponseDTO demande = new DemandeResponseDTO();
+        when(demandeService.getDemande(1L)).thenReturn(demande);
+
+        mockMvc.perform(get("/demandes/1/editer-confirmation"))
+               .andExpect(status().isOk())
+               .andExpect(view().name("demande/editer-confirmation"));
+    }
+}
+```
+
+---
+
+## 9.6 — TEMPLATES THYMELEAF
+
+### 9.6.1 — `editer.html`
+
+**Fichier** : `src/main/resources/templates/demande/editer.html`
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Modifier une Demande</title>
+</head>
+<body>
+
+<h1>MODIFICATION DE DEMANDE DE VISA TRANSFORMABLE</h1>
+
+<!-- Message d'erreur -->
+<div th:if="${errorMessage}" class="alert alert-danger">
+    <span th:text="${errorMessage}"></span>
+</div>
+
+<form th:action="@{/demandes/{id}/editer(id=${demandeId})}" th:object="${demandeForm}" method="post">
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟦 ÉTAT CIVIL (PARTIELLEMENT MODIFIABLE)  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section id="etat-civil">
+        <h2>État Civil</h2>
+
+        <!-- Champs IMMUTABLES (affichage seul) -->
+        <div class="field-immutable">
+            <label>Nom (IMMUTABLE)</label>
+            <input type="text" th:value="*{demandeurDTO.nomImmutable}" readonly />
+        </div>
+
+        <div class="field-immutable">
+            <label>Date de naissance (IMMUTABLE)</label>
+            <input type="date" th:value="*{demandeurDTO.dateNaissanceImmutable}" readonly />
+        </div>
+
+        <div class="field-immutable">
+            <label>Nationalité (IMMUTABLE)</label>
+            <input type="text" th:value="*{demandeurDTO.nationaliteImmutable}" readonly />
+        </div>
+
+        <!-- Champs modifiables -->
+        <label>Prénom</label>
+        <input type="text" th:field="*{demandeurDTO.prenom}" />
+
+        <label>Nom jeune fille</label>
+        <input type="text" th:field="*{demandeurDTO.nomJeuneFille}" />
+
+        <label>Date de naissance</label>
+        <input type="date" th:field="*{demandeurDTO.dateNaissance}" />
+
+        <label>Lieu de naissance</label>
+        <input type="text" th:field="*{demandeurDTO.lieuNaissance}" />
+
+        <label>Situation familiale</label>
+        <select th:field="*{demandeurDTO.idSituationFamiliale}">
+            <option value="">-- Sélectionner --</option>
+            <option th:each="sf : ${situationsFamiliales}"
+                    th:value="${sf.id}"
+                    th:text="${sf.libelle}">
+            </option>
+        </select>
+
+        <label>Adresse Madagascar (O)</label>
+        <textarea th:field="*{demandeurDTO.adresseMadagascar}" required></textarea>
+        <span th:errors="*{demandeurDTO.adresseMadagascar}"></span>
+
+        <label>Téléphone (O)</label>
+        <input type="tel" th:field="*{demandeurDTO.telephone}" required />
+        <span th:errors="*{demandeurDTO.telephone}"></span>
+
+        <label>Email</label>
+        <input type="email" th:field="*{demandeurDTO.email}" />
+        <span th:errors="*{demandeurDTO.email}"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟩 PASSEPORT (MODIFIABLE)           -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section id="passeport">
+        <h2>Passeport</h2>
+
+        <label>Numéro (O, U)</label>
+        <input type="text" th:field="*{passeportDTO.numero}" required />
+        <span th:errors="*{passeportDTO.numero}"></span>
+
+        <label>Date de délivrance (O)</label>
+        <input type="date" th:field="*{passeportDTO.dateDelivrance}" required />
+        <span th:errors="*{passeportDTO.dateDelivrance}"></span>
+
+        <label>Date d'expiration (O)</label>
+        <input type="date" th:field="*{passeportDTO.dateExpiration}" required />
+        <span th:errors="*{passeportDTO.dateExpiration}"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟨 VISA TRANSFORMABLE (MODIFIABLE)  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section id="visa-transformable">
+        <h2>Visa Transformable</h2>
+
+        <label>Référence Visa (O, U)</label>
+        <input type="text" th:field="*{visaDTO.referenceVisa}" required />
+        <span th:errors="*{visaDTO.referenceVisa}"></span>
+
+        <label>Date d'entrée (O)</label>
+        <input type="date" th:field="*{visaDTO.dateEntree}" required />
+        <span th:errors="*{visaDTO.dateEntree}"></span>
+
+        <label>Lieu d'entrée (O)</label>
+        <input type="text" th:field="*{visaDTO.lieuEntree}" required />
+        <span th:errors="*{visaDTO.lieuEntree}"></span>
+
+        <label>Date d'expiration visa (O)</label>
+        <input type="date" th:field="*{visaDTO.dateExpiration}" required />
+        <span th:errors="*{visaDTO.dateExpiration}"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟥 DEMANDE (PARTIELLEMENT MODIFIABLE) -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section id="demande">
+        <h2>Demande</h2>
+
+        <label>Type de visa (O)</label>
+        <select id="selectTypeVisa" th:field="*{idTypeVisa}" required>
+            <option value="">-- Sélectionner --</option>
+            <option th:each="tv : ${typesVisa}"
+                    th:value="${tv.id}"
+                    th:text="${tv.libelle}">
+            </option>
+        </select>
+        <span th:errors="*{idTypeVisa}"></span>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BLOC 🟪 PIÈCES À FOURNIR (MODIFIABLE)     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section id="pieces">
+        <h2>Pièces à fournir</h2>
+
+        <h3>Pièces communes</h3>
+        <div th:each="piece : ${piecesCommunes}">
+            <input type="checkbox"
+                   name="piecesFournies"
+                   th:value="${piece.id}"
+                   th:id="'piece_' + ${piece.id}"
+                   th:checked="${#lists.contains(demandeForm.piecesFournies, piece.id)}" />
+            <label th:for="'piece_' + ${piece.id}">
+                <span th:text="${piece.nom}"></span>
+                <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+            </label>
+        </div>
+
+        <h3>Pièces spécifiques</h3>
+        <div id="pieces-specifiques">
+            <!-- Contenu injecté par JavaScript -->
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- BOUTONS                                     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div class="form-actions">
+        <button type="submit">ENREGISTRER MODIFICATION</button>
+        <a th:href="@{/demandes/{id}(id=${demandeId})}">ANNULER</a>
+    </div>
+
+</form>
+
+<script th:inline="javascript">
+    const demandeId = /*[[${demandeId}]]*/ null;
+    const selectedPieces = /*[[${demandeForm.piecesFournies}]]*/ [];
+
+    document.getElementById('selectTypeVisa').addEventListener('change', function () {
+        const idTypeVisa = this.value;
+        const container = document.getElementById('pieces-specifiques');
+        container.innerHTML = '';
+
+        if (!idTypeVisa) return;
+
+        fetch('/demandes/' + demandeId + '/editer-pieces?idTypeVisa=' + idTypeVisa)
+            .then(response => response.json())
+            .then(pieces => {
+                pieces.forEach(piece => {
+                    const div = document.createElement('div');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'piecesFournies';
+                    checkbox.value = piece.id;
+                    checkbox.id = 'spec_piece_' + piece.id;
+                    checkbox.checked = selectedPieces.includes(piece.id);
+
+                    const label = document.createElement('label');
+                    label.htmlFor = 'spec_piece_' + piece.id;
+                    label.textContent = piece.nom + (piece.obligatoire ? ' *' : '');
+
+                    div.appendChild(checkbox);
+                    div.appendChild(label);
+                    container.appendChild(div);
+                });
+            })
+            .catch(err => console.error('Erreur chargement pièces:', err));
+    });
+
+    // Recharger les pièces au chargement de la page
+    document.getElementById('selectTypeVisa').dispatchEvent(new Event('change'));
+</script>
+
+</body>
+</html>
+```
+
+---
+
+### 9.6.2 — `editer-confirmation.html`
+
+**Fichier** : `src/main/resources/templates/demande/editer-confirmation.html`
+
+```html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Confirmation de Modification</title>
+</head>
+<body>
+
+<h1 th:if="${isModification}">Demande modifiée avec succès</h1>
+<h1 th:unless="${isModification}">Demande enregistrée avec succès</h1>
+
+<!-- Message flash -->
+<div th:if="${successMessage}" class="alert alert-success">
+    <span th:text="${successMessage}"></span>
+</div>
+
+<section id="recap-demande">
+    <h2>Récapitulatif</h2>
+    <table>
+        <tr><th>Numéro de demande</th>  <td th:text="${demande.id}"></td></tr>
+        <tr><th>Date de demande</th>    <td th:text="${demande.dateDemande}"></td></tr>
+        <tr><th>Demandeur</th>          <td th:text="${demande.nomDemandeur + ' ' + demande.prenomDemandeur}"></td></tr>
+        <tr><th>Référence Visa</th>     <td th:text="${demande.referenceVisa}"></td></tr>
+        <tr><th>Type de Visa</th>       <td th:text="${demande.typeVisa}"></td></tr>
+        <tr><th>Type de Demande</th>    <td th:text="${demande.typeDemande}"></td></tr>
+        <tr>
+            <th>Statut</th>
+            <td>
+                <span class="badge badge-cree" th:text="${demande.statutDemande}"></span>
+            </td>
+        </tr>
+    </table>
+</section>
+
+<section id="recap-pieces">
+    <h2>Pièces associées</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Pièce</th>
+                <th>Obligatoire</th>
+                <th>Fournie</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="piece : ${demande.pieces}">
+                <td th:text="${piece.nomPiece}"></td>
+                <td th:text="${piece.obligatoire ? 'Oui' : 'Non'}"></td>
+                <td>
+                    <span th:if="${piece.fourni}" class="badge-ok">✔</span>
+                    <span th:unless="${piece.fourni}" class="badge-nok">✗</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</section>
+
+<div class="actions">
+    <a th:href="@{/demandes/{id}/editer(id=${demande.id})}">Éditer à nouveau</a>
+    <a th:href="@{/}">Retour à l'accueil</a>
+</div>
+
+</body>
+</html>
+```
+
+---
+
+## 9.7 — REPOSITORY UPDATE
+
+### Modification de `DemandePieceRepository.java`
+
+**Ajout dans** : `src/main/java/com/visa/backoffice/repository/DemandePieceRepository.java`
+
+```java
+/**
+ * Supprime tous les liens DemandePiece pour une demande donnée.
+ * Utilisé lors de la modification : on supprime les anciens liens avant de les recréer.
+ *
+ * @param demandeId identifiant de la demande
+ */
+void deleteByDemandeId(Long demandeId);
+```
+
+---
+
+## 9.8 — RÉSUMÉ DES NOUVELLES RÈGLES DE GESTION
+
+| Code | Règle | Implémentée dans |
+|------|-------|-----------------|
+| RG-11 | Lors de la modification, les relations `demande_piece` sont recréées | `DemandeService.modifierDemande()` |
+| RG-12 | `dateDemande`, `idDemandeur`, `typeDemande` sont immutables (non modifiables) | `DemandeUpdateDTO`, `DemandeService` |
+| RG-13 | Les validations existantes (unicité, cohérence des dates) s'appliquent lors de la modification | `DemandeService.modifierDemande()` |
+| RG-14 | Un historique statut est créé si le statut change (futur) | `DemandeService.creerHistoriqueStatut()` |
+| RG-15 | Le demandeur : seuls les champs modifiables sont altérables (nom/dateNaissance/nationalité bloqués) | `DemandeurUpdateDTO`, `DemandeService.modifierDemande()` |
+
+---
+
+## 9.9 — URLs DE TEST POUR LA MODIFICATION
+
+```
+GET  http://localhost:8080/demandes/{idDemande}/editer
+     → Affiche le formulaire de modification avec les données actuelles
+     → Exemple: http://localhost:8080/demandes/1/editer
+
+POST http://localhost:8080/demandes/{idDemande}/editer
+     → Soumet les modifications
+     → Exemple: http://localhost:8080/demandes/1/editer
+     → Réponse: redirection vers /demandes/1/editer-confirmation
+
+GET  http://localhost:8080/demandes/{idDemande}/editer-pieces?idTypeVisa=1
+     → AJAX : retourne les pièces spécifiques au type visa sélectionné
+     → Exemple: http://localhost:8080/demandes/1/editer-pieces?idTypeVisa=2
+
+GET  http://localhost:8080/demandes/{idDemande}/editer-confirmation
+     → Affiche la page de confirmation post-modification
+     → Exemple: http://localhost:8080/demandes/1/editer-confirmation
+```
+
+---
+
+## 9.10 — RÉSUMÉ DES FICHIERS À CRÉER/MODIFIER
+
+### À CRÉER
+
+1. `src/main/java/com/visa/backoffice/dto/DemandeUpdateDTO.java`
+2. `src/main/java/com/visa/backoffice/dto/DemandeurUpdateDTO.java`
+3. `src/main/resources/templates/demande/editer.html`
+4. `src/main/resources/templates/demande/editer-confirmation.html`
+5. `src/test/java/com/visa/backoffice/service/DemandeServiceUpdateTest.java`
+6. `src/test/java/com/visa/backoffice/controller/DemandeControllerUpdateTest.java`
+
+### À MODIFIER
+
+1. `src/main/java/com/visa/backoffice/mapper/DemandeMapper.java` (ajouter `toUpdateDTO()`)
+2. `src/main/java/com/visa/backoffice/service/DemandeService.java` (ajouter `modifierDemande()`, `getDemandePourEdition()`)
+3. `src/main/java/com/visa/backoffice/controller/DemandeController.java` (ajouter 3 endpoints)
+4. `src/main/java/com/visa/backoffice/repository/DemandePieceRepository.java` (ajouter `deleteByDemandeId()`)
+
+---
+
+# ORDRE D'EXÉCUTION RECOMMANDÉ (MISE À JOUR)
+
+```
+Semaine 1 (identique)
   ├─ Étape 1 : Entités  (1.1 → 1.6)      + Tests T-01
   ├─ Étape 2 : DTOs     (2.1 → 2.5)      + Tests T-02 à T-04
   ├─ Étape 3 : Repos    (3.1 → 3.6)      + Tests T-05 à T-09
   └─ Étape 4 : Mappers  (4.1 → 4.2)      + Tests T-10 à T-11
 
-Semaine 2
+Semaine 2 (identique)
   ├─ Étape 5.1 : VisaTransformableService + Tests T-12 à T-15
   ├─ Étape 5.2 : PieceService             + Tests T-16 à T-18
   ├─ Étape 5.3 : DemandeService           + Tests T-19 à T-26
   ├─ Étape 6   : Controller               + Tests T-27 à T-32
   └─ Étape 7   : Templates Thymeleaf (formulaire + confirmation)
+
+Semaine 3 (NOUVELLE : MODIFICATION)
+  ├─ Étape 9.2 : DTOs édition (DemandeUpdateDTO + DemandeurUpdateDTO)
+  ├─ Étape 9.3 : Extension Mapper (toUpdateDTO)
+  ├─ Étape 9.4 : Extension Service (modifierDemande, getDemandePourEdition) + Tests
+  ├─ Étape 9.5 : Extension Controller (endpoints édition) + Tests
+  ├─ Étape 9.6 : Templates editer.html + editer-confirmation.html
+  └─ Étape 9.7 : Extension Repository (deleteByDemandeId)
 ```
 
-> ⚠️ Ne pas commencer l'Étape 6 (Controller) avant d'avoir tous les tests service au vert.
-> ⚠️ Synchroniser avec Dev1 dès le début pour valider les signatures de `DemandeurService` et `PasseportService`.
+> ⚠️ **Priorité** : Ne commencer l'Étape 9 qu'une fois l'Étape 7 terminée et testée.
+> ⚠️ **Dépendances** : La modification dépend de tous les services existants (Dev1). Synchroniser avec Dev1 avant de commencer.
+
+---
