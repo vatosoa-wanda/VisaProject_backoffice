@@ -25,7 +25,7 @@
 <body>
 
 <div class="container mt-5">
-    <h1 class="mb-4">DEMANDE DE VISA TRANSFORMABLE</h1>
+    <h1 class="mb-4" th:text="${pageTitle != null ? pageTitle : 'DEMANDE DE VISA TRANSFORMABLE'}">DEMANDE DE VISA TRANSFORMABLE</h1>
 
     <!-- Message d'erreur global (BusinessException) -->
     <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -33,7 +33,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
-    <form th:action="@{/demandes/nouvelle}" th:object="${demandeForm}" method="post" novalidate>
+    <form th:action="${formAction != null ? formAction : '/demandes/nouvelle'}" th:object="${demandeForm}" method="post" novalidate>
 
         <!-- ═══════════════════════════════════════════ -->
         <!-- BLOC 🟦 ÉTAT CIVIL (Dev1)                   -->
@@ -60,7 +60,9 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label for="dateNaissance" class="form-label">Date de naissance <span class="badge-obligatoire">*</span></label>
-                <input type="date" class="form-control" id="dateNaissance" th:field="*{demandeurDTO.dateNaissance}" required>
+                <input type="date" class="form-control" id="dateNaissance" name="demandeurDTO.dateNaissance"
+                       th:value="${demandeForm != null && demandeForm.demandeurDTO != null && demandeForm.demandeurDTO.dateNaissance != null ? #temporals.format(demandeForm.demandeurDTO.dateNaissance, 'yyyy-MM-dd') : ''}"
+                       required>
                 <div th:errors="*{demandeurDTO.dateNaissance}" class="alert-error text-danger"></div>
             </div>
         </div>
@@ -123,7 +125,9 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label for="dateDelivrance" class="form-label">Date de délivrance <span class="badge-obligatoire">*</span></label>
-                <input type="date" class="form-control" id="dateDelivrance" th:field="*{passeportDTO.dateDelivrance}" required>
+                <input type="date" class="form-control" id="dateDelivrance" name="passeportDTO.dateDelivrance"
+                       th:value="${demandeForm != null && demandeForm.passeportDTO != null && demandeForm.passeportDTO.dateDelivrance != null ? #temporals.format(demandeForm.passeportDTO.dateDelivrance, 'yyyy-MM-dd') : ''}"
+                       required>
                 <div th:errors="*{passeportDTO.dateDelivrance}" class="alert-error text-danger"></div>
             </div>
         </div>
@@ -131,7 +135,9 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label for="dateExpirationPasSeport" class="form-label">Date d'expiration <span class="badge-obligatoire">*</span></label>
-                <input type="date" class="form-control" id="dateExpirationPasSeport" th:field="*{passeportDTO.dateExpiration}" required>
+                <input type="date" class="form-control" id="dateExpirationPasSeport" name="passeportDTO.dateExpiration"
+                       th:value="${demandeForm != null && demandeForm.passeportDTO != null && demandeForm.passeportDTO.dateExpiration != null ? #temporals.format(demandeForm.passeportDTO.dateExpiration, 'yyyy-MM-dd') : ''}"
+                       required>
                 <div th:errors="*{passeportDTO.dateExpiration}" class="alert-error text-danger"></div>
             </div>
         </div>
@@ -150,7 +156,9 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label for="dateEntreeVisa" class="form-label">Date d'entrée <span class="badge-obligatoire">*</span></label>
-                <input type="date" class="form-control" id="dateEntreeVisa" th:field="*{visaDTO.dateEntree}" required>
+                <input type="date" class="form-control" id="dateEntreeVisa" name="visaDTO.dateEntree"
+                       th:value="${demandeForm != null && demandeForm.visaDTO != null && demandeForm.visaDTO.dateEntree != null ? #temporals.format(demandeForm.visaDTO.dateEntree, 'yyyy-MM-dd') : ''}"
+                       required>
                 <div th:errors="*{visaDTO.dateEntree}" class="alert-error text-danger"></div>
             </div>
         </div>
@@ -163,7 +171,9 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label for="dateExpirationVisa" class="form-label">Date d'expiration visa <span class="badge-obligatoire">*</span></label>
-                <input type="date" class="form-control" id="dateExpirationVisa" th:field="*{visaDTO.dateExpiration}" required>
+                <input type="date" class="form-control" id="dateExpirationVisa" name="visaDTO.dateExpiration"
+                       th:value="${demandeForm != null && demandeForm.visaDTO != null && demandeForm.visaDTO.dateExpiration != null ? #temporals.format(demandeForm.visaDTO.dateExpiration, 'yyyy-MM-dd') : ''}"
+                       required>
                 <div th:errors="*{visaDTO.dateExpiration}" class="alert-error text-danger"></div>
             </div>
         </div>
@@ -196,7 +206,8 @@
         <h4>Pièces communes</h4>
         <div id="piecesCommunes">
             <div th:each="piece : ${piecesCommunes}" class="form-check">
-                <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'piece_' + ${piece.id}">
+                <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'piece_' + ${piece.id}"
+                       th:checked="${demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)}">
                 <label class="form-check-label" th:for="'piece_' + ${piece.id}">
                     <span th:text="${piece.nom}"></span>
                     <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
@@ -204,77 +215,40 @@
             </div>
         </div>
 
-        <!-- Pièces spécifiques : chargées dynamiquement par AJAX -->
+        <!-- Pièces spécifiques : affichées côté serveur (sans JavaScript) -->
         <h4 style="margin-top: 20px;">Pièces spécifiques</h4>
         <div id="pieces-specifiques">
-            <!-- Contenu injecté par JavaScript -->
+            <div th:if="${piecesSpecifiques == null or piecesSpecifiques.isEmpty()}" class="text-muted">
+                Sélectionnez un type de visa puis cliquez sur « Mettre à jour les pièces spécifiques ».
+            </div>
+            <div th:if="${piecesSpecifiques != null and !piecesSpecifiques.isEmpty()}">
+                <div th:each="piece : ${piecesSpecifiques}" class="form-check">
+                    <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'spec_piece_' + ${piece.id}"
+                           th:checked="${demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)}">
+                    <label class="form-check-label" th:for="'spec_piece_' + ${piece.id}">
+                        <span th:text="${piece.nom}"></span>
+                        <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-outline-secondary" name="refreshPieces" value="true">
+                Mettre à jour les pièces spécifiques
+            </button>
         </div>
 
         <!-- ═══════════════════════════════════════════ -->
         <!-- BOUTONS                                     -->
         <!-- ═══════════════════════════════════════════ -->
         <div class="form-actions mt-4">
-            <button type="submit" class="btn btn-primary">ENREGISTRER</button>
-            <a th:href="@{/}" class="btn btn-secondary">ANNULER</a>
+            <button type="submit" class="btn btn-primary" th:text="${submitLabel != null ? submitLabel : 'ENREGISTRER'}">ENREGISTRER</button>
+            <a th:href="${cancelUrl != null ? cancelUrl : '/'}" class="btn btn-secondary">ANNULER</a>
         </div>
 
     </form>
 </div>
-
-<!-- ═══════════════════════════════════════════════ -->
-<!-- JAVASCRIPT : chargement dynamique des pièces   -->
-<!-- ═══════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script th:inline="javascript">
-    document.getElementById('typeVisa').addEventListener('change', function () {
-        const idTypeVisa = this.value;
-        const container = document.getElementById('pieces-specifiques');
-        container.innerHTML = '';  // vider le bloc précédent
-
-        if (!idTypeVisa) return;
-
-        fetch('/demandes/pieces?idTypeVisa=' + idTypeVisa)
-            .then(response => response.json())
-            .then(pieces => {
-                if (pieces.length === 0) {
-                    container.innerHTML = '<p class="text-muted">Aucune pièce spécifique requise</p>';
-                    return;
-                }
-
-                pieces.forEach(piece => {
-                    const div = document.createElement('div');
-                    div.className = 'form-check';
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.name = 'piecesFournies';
-                    checkbox.value = piece.id;
-                    checkbox.id = 'spec_piece_' + piece.id;
-                    checkbox.className = 'form-check-input';
-
-                    const label = document.createElement('label');
-                    label.className = 'form-check-label';
-                    label.htmlFor = 'spec_piece_' + piece.id;
-                    label.textContent = piece.nom;
-
-                    if (piece.obligatoire) {
-                        const span = document.createElement('span');
-                        span.className = 'badge-obligatoire';
-                        span.textContent = ' *';
-                        label.appendChild(span);
-                    }
-
-                    div.appendChild(checkbox);
-                    div.appendChild(label);
-                    container.appendChild(div);
-                });
-            })
-            .catch(err => {
-                console.error('Erreur chargement pièces:', err);
-                container.innerHTML = '<p class="alert alert-danger">Erreur lors du chargement des pièces</p>';
-            });
-    });
-</script>
 
 </body>
 </html>

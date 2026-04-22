@@ -7,6 +7,7 @@ import com.visa.backoffice.model.SituationFamiliale;
 import com.visa.backoffice.repository.DemandeurRepository;
 import com.visa.backoffice.repository.NationaliteRepository;
 import com.visa.backoffice.repository.SituationFamilialeRepository;
+import com.visa.backoffice.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +83,31 @@ public class DemandeurService {
         // Résoudre Nationalité (obligatoire)
         Nationalite nationalite = nationaliteRepository.findById(dto.getIdNationalite())
                 .orElseThrow(() -> new RuntimeException("Nationalité introuvable"));
+        demandeur.setNationalite(nationalite);
+
+        return demandeurRepository.save(demandeur);
+    }
+
+    public Demandeur modifier(Demandeur demandeur, DemandeurDTO dto) {
+        demandeur.setNom(dto.getNom());
+        demandeur.setPrenom(dto.getPrenom());
+        demandeur.setNomJeuneFille(dto.getNomJeuneFille());
+        demandeur.setDateNaissance(dto.getDateNaissance());
+        demandeur.setLieuNaissance(dto.getLieuNaissance());
+        demandeur.setAdresseMadagascar(dto.getAdresseMadagascar());
+        demandeur.setTelephone(dto.getTelephone());
+        demandeur.setEmail(dto.getEmail());
+
+        if (dto.getIdSituationFamiliale() != null) {
+            SituationFamiliale sf = situationFamilialeRepository.findById(dto.getIdSituationFamiliale())
+                    .orElseThrow(() -> new ResourceNotFoundException("Situation familiale introuvable : id=" + dto.getIdSituationFamiliale()));
+            demandeur.setSituationFamiliale(sf);
+        } else {
+            demandeur.setSituationFamiliale(null);
+        }
+
+        Nationalite nationalite = nationaliteRepository.findById(dto.getIdNationalite())
+                .orElseThrow(() -> new ResourceNotFoundException("Nationalité introuvable : id=" + dto.getIdNationalite()));
         demandeur.setNationalite(nationalite);
 
         return demandeurRepository.save(demandeur);
