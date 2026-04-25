@@ -32,10 +32,6 @@ public class Passeport {
     @JoinColumn(name = "id_demandeur")
     private Demandeur demandeur;
 
-    @OneToMany(mappedBy = "passeport")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Set<VisaTransformable> visasTransformables = new HashSet<>();
 
     @OneToMany(mappedBy = "passeport")
     @ToString.Exclude

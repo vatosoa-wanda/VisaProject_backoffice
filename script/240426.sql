@@ -49,7 +49,7 @@ CREATE TABLE passeport (
     numero VARCHAR(50) UNIQUE,
     date_delivrance DATE,
     date_expiration DATE,
-    id_demandeur INT,
+    id_demandeur INT, 
     FOREIGN KEY (id_demandeur) REFERENCES demandeur(id)
 );
 
@@ -59,7 +59,9 @@ CREATE TABLE visa_transformable (
     date_entree DATE,
     lieu_entree VARCHAR(100),
     date_expiration DATE,
-    id_passeport INT,
+    id_demandeur INT,
+    id_passeport INT, 
+    FOREIGN KEY (id_demandeur) REFERENCES demandeur(id),
     FOREIGN KEY (id_passeport) REFERENCES passeport(id)
 );
 

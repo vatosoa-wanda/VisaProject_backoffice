@@ -32,6 +32,10 @@ public class VisaTransformable {
     private LocalDate dateExpiration;
 
     @ManyToOne
+    @JoinColumn(name = "id_demandeur")
+    private Demandeur demandeur;
+
+    @ManyToOne
     @JoinColumn(name = "id_passeport")
     private Passeport passeport;
 

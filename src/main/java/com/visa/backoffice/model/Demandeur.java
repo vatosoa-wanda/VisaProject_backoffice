@@ -59,5 +59,10 @@ public class Demandeur {
     @OneToMany(mappedBy = "demandeur")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    private Set<VisaTransformable> visasTransformables = new HashSet<>();
+
+    @OneToMany(mappedBy = "demandeur")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<Demande> demandes = new HashSet<>();
 }

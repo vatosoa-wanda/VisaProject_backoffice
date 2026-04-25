@@ -103,7 +103,7 @@ public class DemandeService {
         Passeport passeport = passeportService.creer(dto.getPasseportDTO(), demandeur);
 
         // ÉTAPE 3 — VisaTransformable
-        VisaTransformable visa = visaTransformableService.creer(dto.getVisaDTO(), passeport);
+        VisaTransformable visa = visaTransformableService.creer(dto.getVisaDTO(), demandeur, passeport);
 
         // ÉTAPE 4 — TypeVisa
         TypeVisa typeVisa = typeVisaRepository.findById(dto.getIdTypeVisa())
