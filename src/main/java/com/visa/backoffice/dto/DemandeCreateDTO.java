@@ -41,4 +41,13 @@ public class DemandeCreateDTO {
     // ── Bloc 🟪 PIÈCES ───────────────────────────────────────────
     @Builder.Default
     private List<Long> piecesFournies = new ArrayList<>();  // ids des pièces cochées
+
+    // ── Contexte Sprint 2 : DUPLICATA / TRANSFERT ────────────────
+    private Long idDemandeOrigine;              // Pour DUPLICATA/TRANSFERT avec antécédent
+    private String typeDemande;                 // "NOUVELLE" | "DUPLICATA" | "TRANSFERT"
+    private Boolean avecAntecedent;             // true = avec, false = sans
+
+    // ── Nouveau passeport pour TRANSFERT ───────────────────────
+    @Valid
+    private PasseportDTO passeportNouveauDTO;   // Pour TRANSFERT
 }

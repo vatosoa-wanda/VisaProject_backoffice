@@ -3,8 +3,12 @@ package com.visa.backoffice.service;
 import com.visa.backoffice.dto.DemandeCreateDTO;
 import com.visa.backoffice.dto.DemandeurDTO;
 import com.visa.backoffice.dto.DemandeResponseDTO;
+import com.visa.backoffice.dto.DemandeRechercheDTO;
+import com.visa.backoffice.dto.DemandeResumeeDTO;
+import com.visa.backoffice.dto.DuplicataCreateDTO;
 import com.visa.backoffice.dto.PasseportDTO;
 import com.visa.backoffice.dto.PieceDTO;
+import com.visa.backoffice.dto.TransfertCreateDTO;
 import com.visa.backoffice.dto.VisaTransformableDTO;
 import com.visa.backoffice.exception.BusinessException;
 import com.visa.backoffice.exception.ResourceNotFoundException;
@@ -323,5 +327,64 @@ public class DemandeService {
         lierPiecesADemande(demande, dto.getPiecesFournies(), typeVisa);
 
         return demandeMapper.toResponseDTO(demande);
+    }
+
+    /**
+     * Approuver une demande NOUVELLE
+     * RG-01 : crée automatiquement visa + carte_resident après approbation
+     *
+     * @param idDemande The id of the demande to approve
+     * @param commentaire Optional approval comment
+     * @param automatique If true, historique will say "Approbation automatique"
+     * @throws BusinessException if statut != CREE or typeDemande != NOUVELLE
+     */
+    public void approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique) {
+        // Dev1 implémente ici
+        // 1. Charger demande → erreur si absente
+        // 2. Vérifier statut=CREE et type=NOUVELLE → BusinessException sinon
+        // 3. Passer statut → APPROUVEE, sauvegarder
+        // 4. Créer historique ("Approbation automatique" si automatique=true)
+        // 5. visaService.creer(demande, passeport)           ← RG-01
+        // 6. carteResidentService.creer(demande, passeport)  ← RG-01
+        throw new UnsupportedOperationException("À implémenter par Dev1");
+    }
+
+    /**
+     * Rechercher les demandes APPROUVEE type NOUVELLE
+     * Utilisé par Dev2 pour DUPLICATA avec antécédent
+     *
+     * @param criteresRecherche DemandeRechercheDTO (min 1 critère requis)
+     * @return List<DemandeResumeeDTO>
+     * @throws BusinessException if no criteria provided
+     */
+    public List<DemandeResumeeDTO> rechercherDemandesApprouvees(DemandeRechercheDTO criteresRecherche) {
+        // Dev2 implémente ici (Dev1 peut aussi)
+        throw new UnsupportedOperationException("À implémenter par Dev2");
+    }
+
+    /**
+     * Créer une demande DUPLICATA
+     * RG-02, RG-06 : crée une demande DUPLICATA avec nouvelle carte_resident
+     *
+     * @param dto DuplicataCreateDTO contenant idDemandeOrigine + pièces
+     * @return Created demande DUPLICATA (statut=CREE)
+     * @throws BusinessException if origine invalid or doublon exists
+     */
+    public DemandeResponseDTO creerDuplicata(DuplicataCreateDTO dto) {
+        // Dev2 implémente ici
+        throw new UnsupportedOperationException("À implémenter par Dev2");
+    }
+
+    /**
+     * Créer une demande TRANSFERT
+     * RG-03, RG-07 : crée une demande TRANSFERT avec nouveau visa, ancien visa désactivé
+     *
+     * @param dto TransfertCreateDTO contenant idDemandeOrigine + nouveauPasseport + pièces
+     * @return Created demande TRANSFERT (statut=CREE)
+     * @throws BusinessException if origine invalid, doublon, or same passeport number
+     */
+    public DemandeResponseDTO creerTransfert(TransfertCreateDTO dto) {
+        // Dev1 implémente ici
+        throw new UnsupportedOperationException("À implémenter par Dev1");
     }
 }

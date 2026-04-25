@@ -42,6 +42,13 @@ public class Demande {
     @JoinColumn(name = "id_statut_demande")
     private StatutDemande statutDemande;
 
+    @Column(name = "id_demande_origine")
+    private Long idDemandeOrigine;
+
+    @ManyToOne
+    @JoinColumn(name = "id_demande_origine", insertable = false, updatable = false)
+    private Demande demandeOrigine;
+
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
