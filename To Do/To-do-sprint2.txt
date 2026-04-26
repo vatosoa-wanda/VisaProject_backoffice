@@ -161,13 +161,19 @@ Tache : CAS 1.1 — DUPLICATA AVEC ANTÉRIORITÉ
 │  │
 │  └─ Page confirmation : /duplicata/{id}/confirmation GET
 │
-├─ Métier  : POST /duplicata/formulaire
+├─ Métier : POST /duplicata/formulaire
 │  └─ creerDuplicata(DuplicataCreateDTO) dans DemandeService
-│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
-│     2. Vérifier absence doublon DUPLICATA actif (statut CREE) sur cette origine
-│     3. Créer demande DUPLICATA (hérite demandeur, visa, typeVisa de l'origine)
-│     4. Créer historique + lier pièces (réutiliser lierPiecesADemande() Sprint 1)
-│     5. carteResidentService.creer() ← RG-06 : nouvelle carte uniquement, visa intact
+│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE
+│     2. Vérifier absence doublon DUPLICATA actif (statut CREE)
+│     3. Créer demande DUPLICATA (hérite demandeur, visa_transformable, typeVisa)
+│     4. Créer historique + lier pièces
+│     5. carteResidentService.creerPourDuplicata(demandeDuplicata, passeport) :
+│        - génère un NOUVEAU numero_carte UNIQUE (ex: "CRD-2026-002")
+│        - date_debut = aujourd'hui (date d'approbation du duplicata)
+│        - date_fin = date_fin de l'ancienne carte (inchangée) ou nouvelle date selon règle
+│        - id_passeport = id du passeport (identique à l'ancien ou nouveau si changé)
+│        - id_demande = id de la demande DUPLICATA
+│        - l'ancienne carte reste en base avec son ancien numéro (historique)
 │
 ├─ Base    : insert demande (DUPLICATA), historique_statut, demande_piece, carte_resident
 ├─ Tests   : ✅ creerDuplicata() OK → carte créée, visa NON créé, historique créé
@@ -220,14 +226,19 @@ Tache : CAS 2.1 — TRANSFERT AVEC ANTÉRIORITÉ
 │  │
 │  └─ Page confirmation : /transfert/{id}/confirmation GET
 │
-├─ Métier  : POST /transfert/formulaire
+├─ Métier : POST /transfert/formulaire
 │  └─ creerTransfert(TransfertCreateDTO) dans DemandeService
-│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
-│     2. Vérifier absence doublon TRANSFERT actif sur cette origine
+│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE
+│     2. Vérifier absence doublon TRANSFERT actif
 │     3. Créer nouveau Passeport via passeportService.creer() (numéro ≠ ancien)
-│     4. Créer demande TRANSFERT (hérite demandeur, visa, typeVisa)
-│     5. visaService.desactiver(origineId)              ← RG-07 : ancien visa inactif
-│     6. visaService.creer(transfert, nouveauPasseport) ← RG-07 : nouveau visa
+│     4. Créer demande TRANSFERT (hérite demandeur, visa_transformable, typeVisa)
+│     5. visaService.desactiver(origineId)   ← ancien visa : date_fin = aujourd'hui
+│     6. visaService.creerPourTransfert(transfert, nouveauPasseport) :
+│        - génère une NOUVELLE reference_visa (ex: "VISA-TRF-2026-001")
+│        - date_debut = aujourd'hui
+│        - date_fin = date_fin de l'ancien visa (inchangée)
+│        - id_demande = id de la demande TRANSFERT
+│        - id_passeport = id du nouveau passeport
 │     7. carte_resident inchangée (pas de création)
 │
 ├─ Base    : insert passeport (nouveau), demande (TRANSFERT), historique_statut, demande_piece, visa (nouveau)
