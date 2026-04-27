@@ -41,6 +41,27 @@
             <span th:if="${demandeForm.typeDemande == 'TRANSFERT'}">le transfert</span>
             sera créé.
         </div>
+        
+        <!-- Affichage des données antérieures pour TRANSFERT -->
+        <div th:if="${demandeForm != null and demandeForm.typeDemande == 'TRANSFERT' and demandeOrigineId != null}" 
+             class="alert alert-success mb-4">
+            <h5><i class="bi bi-info-circle"></i> Données de la demande d'origine</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Référence :</strong> <span th:text="'#' + ${demandeOrigineId}">#123</span><br>
+                    <strong>Type de visa :</strong> <span th:text="${demandeForm.typeVisa}">TOURISTIQUE</span>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Les informations du demandeur seront pré-remplies. 
+                    Seul le nouveau passeport est requis.</small>
+                </div>
+            </div>
+            <hr>
+            <small class="text-muted">
+                <i class="bi bi-lightbulb"></i> Cette demande de transfert utilisera les données de la demande d'origine 
+                et créera un nouveau visa avec le nouveau passeport.
+            </small>
+        </div>
     </div>
 
     <!-- Fallback si pas de typeDemande (pour Sprint 1) -->

@@ -31,14 +31,21 @@ public class VisaService {
      * @throws BusinessException if passeport is null
      */
     public Visa creer(Demande demande, Passeport passeport) {
-        // Dev1 implémente ici
-        // ✅ Valider passeport != null
-        // ✅ Générer referenceVisa (ex: "VIS-" + timestamp)
-        // ✅ Set dateDebut = LocalDate.now()
-        // ✅ Set dateFin = null
-        // ✅ Link à demande et passeport
-        // ✅ Save et return
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        if (passeport == null) {
+            throw new BusinessException("Le passeport est obligatoire pour créer un visa");
+        }
+
+        // Générer referenceVisa unique (ex: "VIS-2026-001-" + timestamp)
+        String referenceVisa = "VIS-" + System.currentTimeMillis();
+
+        Visa visa = new Visa();
+        visa.setReferenceVisa(referenceVisa);
+        visa.setDateDebut(LocalDate.now());
+        visa.setDateFin(null);
+        visa.setDemande(demande);
+        visa.setPasseport(passeport);
+
+        return visaRepository.save(visa);
     }
 
     /**
@@ -49,11 +56,13 @@ public class VisaService {
      * @throws BusinessException if no active visa found
      */
     public void desactiver(Long idDemande) {
-        // Dev1 implémente ici
-        // ✅ Charger visa actif de la demande (dateFin = null)
-        // ✅ Set dateFin = LocalDate.now()
-        // ✅ Save
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        Visa visa = visaRepository.findByDemandeId(idDemande);
+        if (visa == null) {
+            throw new BusinessException("Aucun visa actif trouvé pour la demande : " + idDemande);
+        }
+
+        visa.setDateFin(LocalDate.now());
+        visaRepository.save(visa);
     }
 
     /**

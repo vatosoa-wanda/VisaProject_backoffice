@@ -1,6 +1,7 @@
 package com.visa.backoffice.mapper;
 
 import com.visa.backoffice.dto.DemandePieceDTO;
+import com.visa.backoffice.dto.DemandeResumeeDTO;
 import com.visa.backoffice.dto.DemandeResponseDTO;
 import com.visa.backoffice.dto.PieceDTO;
 import com.visa.backoffice.model.Demande;
@@ -58,6 +59,29 @@ public class DemandeMapper {
                     return dpDto;
                 })
                 .collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+
+    /**
+     * Convertit une Demande en DemandeResumeeDTO pour la recherche.
+     * @param demande   entité avec toutes ses relations chargées
+     * @return          DemandeResumeeDTO prêt pour la recherche
+     */
+    public DemandeResumeeDTO toResumeeDTO(Demande demande) {
+        DemandeResumeeDTO dto = new DemandeResumeeDTO();
+        dto.setId(demande.getId());
+        dto.setDateApproval(demande.getDateDemande());
+
+        if (demande.getDemandeur() != null) {
+            dto.setDemandeurNom(demande.getDemandeur().getNom());
+            dto.setDemandeurPrenom(demande.getDemandeur().getPrenom());
+        }
+
+        if (demande.getVisaTransformable() != null && demande.getVisaTransformable().getPasseport() != null) {
+            dto.setNumeroPasSeport(demande.getVisaTransformable().getPasseport().getNumero());
+            dto.setReferenceVisa(demande.getVisaTransformable().getReferenceVisa());
         }
 
         return dto;

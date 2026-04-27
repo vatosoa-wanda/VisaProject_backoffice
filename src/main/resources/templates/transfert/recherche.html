@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recherche de demande d'origine</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding: 20px 0;
+        }
+        .container-fluid {
+            max-width: 1200px;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .search-card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+        }
+        .results-card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        .table-responsive {
+            border-radius: 0.375rem;
+        }
+        .btn-action {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1><i class="bi bi-search"></i> <span th:text="${pageTitle}">Recherche de demande d'origine pour transfert</span></h1>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <!-- Instructions -->
+        <div class="alert alert-info mb-4">
+            <h5><i class="bi bi-info-circle"></i> Instructions</h5>
+            <p class="mb-0">Recherchez une demande approuvée de type NOUVELLE pour créer un transfert. 
+            Au moins un critère de recherche est requis (nom, prénom ou numéro de passeport).</p>
+        </div>
+
+        <!-- Messages d'erreur -->
+        <div th:if="${errorMessage}" class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i> <span th:text="${errorMessage}"></span>
+        </div>
+
+        <!-- Formulaire de recherche -->
+        <div class="card search-card">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Critères de recherche</h5>
+                <form th:action="@{/transfert/recherche}" method="post">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="nomDemandeur" class="form-label">Nom du demandeur</label>
+                            <input type="text" class="form-control" id="nomDemandeur" 
+                                   th:field="*{criteresRecherche.nomDemandeur}" placeholder="Ex: RAKOTO">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="prenomDemandeur" class="form-label">Prénom du demandeur</label>
+                            <input type="text" class="form-control" id="prenomDemandeur" 
+                                   th:field="*{criteresRecherche.prenomDemandeur}" placeholder="Ex: Jean">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="numeroPasseport" class="form-label">Numéro de passeport</label>
+                            <input type="text" class="form-control" id="numeroPasseport" 
+                                   th:field="*{criteresRecherche.numeroPasseport}" placeholder="Ex: MA123456">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Rechercher
+                        </button>
+                        <a href="/demandes" class="btn btn-secondary">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Résultats de recherche -->
+        <div th:if="${resultats != null and !resultats.empty}">
+            <div class="card results-card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="bi bi-list-check"></i> Résultats de recherche 
+                        <span class="badge bg-primary ms-2" th:text="${resultats.size}">0</span>
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Référence</th>
+                                    <th>Demandeur</th>
+                                    <th>Passeport</th>
+                                    <th>Type visa</th>
+                                    <th>Date demande</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="demande : ${resultats}">
+                                    <td>
+                                        <strong class="text-primary" th:text="'#' + ${demande.id}">#123</strong>
+                                    </td>
+                                    <td>
+                                        <span th:text="${demande.nomDemandeur} + ' ' + ${demande.prenomDemandeur}">RAKOTO Jean</span>
+                                    </td>
+                                    <td>
+                                        <code th:text="${demande.numeroPasseport}">MA123456</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info" th:text="${demande.typeVisa}">TOURISTIQUE</span>
+                                    </td>
+                                    <td>
+                                        <small th:text="${#temporals.format(demande.dateDemande, 'dd/MM/yyyy')}">01/01/2024</small>
+                                    </td>
+                                    <td>
+                                        <a th:href="'/transfert/formulaire?idDemandeOrigine=' + ${demande.id} + '&idTypeVisa=' + ${demande.idTypeVisa}" 
+                                           class="btn btn-sm btn-primary btn-action">
+                                            <i class="bi bi-arrow-right-circle"></i> Sélectionner
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aucun résultat -->
+        <div th:if="${resultats != null and resultats.empty}" class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            Aucune demande trouvée pour les critères spécifiés. 
+            Essayez avec d'autres critères ou vérifiez que la demande est bien approuvée et de type NOUVELLE.
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

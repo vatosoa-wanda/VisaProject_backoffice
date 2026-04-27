@@ -29,15 +29,27 @@ public class CarteResidentService {
      * @throws BusinessException if passeport is null
      */
     public CarteResident creer(Demande demande, Passeport passeport) {
-        // Dev1 implémente ici
-        // ✅ Valider passeport != null → BusinessException sinon
-        // ✅ Générer numeroCarte UNIQUE (ex: "RES-" + timestamp + random)
-        // ✅ Vérifier numeroCarte n'existe pas déjà
-        // ✅ Set dateDebut = LocalDate.now()
-        // ✅ Set dateFin = null
-        // ✅ Link à demande et passeport
-        // ✅ Save et return
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        if (passeport == null) {
+            throw new BusinessException("Le passeport est obligatoire pour créer une carte résident");
+        }
+
+        // Générer numeroCarte unique (ex: "CRD-2026-" + timestamp)
+        String numeroCarte = "CRD-" + System.currentTimeMillis();
+
+        // Vérifier que le numéro ne existe pas déjà
+        CarteResident existing = carteResidentRepository.findByNumeroCarte(numeroCarte);
+        if (existing != null) {
+            throw new BusinessException("Le numéro de carte existe déjà : " + numeroCarte);
+        }
+
+        CarteResident carte = new CarteResident();
+        carte.setNumeroCarte(numeroCarte);
+        carte.setDateDebut(java.time.LocalDate.now());
+        carte.setDateFin(null);
+        carte.setDemande(demande);
+        carte.setPasseport(passeport);
+
+        return carteResidentRepository.save(carte);
     }
 
     /**

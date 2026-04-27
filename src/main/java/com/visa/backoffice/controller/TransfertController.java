@@ -1,7 +1,12 @@
 package com.visa.backoffice.controller;
 
 import com.visa.backoffice.dto.DemandeCreateDTO;
+import com.visa.backoffice.dto.DemandeRechercheDTO;
+import com.visa.backoffice.dto.DemandeResumeeDTO;
 import com.visa.backoffice.dto.PieceDTO;
+import com.visa.backoffice.dto.TransfertCreateDTO;
+import com.visa.backoffice.exception.BusinessException;
+import com.visa.backoffice.exception.ResourceNotFoundException;
 import com.visa.backoffice.repository.NationaliteRepository;
 import com.visa.backoffice.repository.SituationFamilialeRepository;
 import com.visa.backoffice.repository.TypeVisaRepository;
@@ -12,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -54,7 +60,41 @@ public class TransfertController {
     public String afficherFormulaire(@RequestParam(required = false) Long idDemandeOrigine,
                                     @RequestParam(required = false) Long idTypeVisa,
                                     Model model) {
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        DemandeCreateDTO form = new DemandeCreateDTO();
+        form.setTypeDemande("TRANSFERT");
+        form.setIdTypeVisa(idTypeVisa);
+
+        // CAS 2.1 : TRANSFERT AVEC ANTÉCÉDENT
+        if (idDemandeOrigine != null) {
+            form.setIdDemandeOrigine(idDemandeOrigine);
+            form.setAvecAntecedent(true);
+
+            // Pré-remplir avec les données de la demande d'origine
+            try {
+                com.visa.backoffice.dto.DemandeResponseDTO demandeOrigine = demandeService.getDemande(idDemandeOrigine);
+                // L'extraction des données sera faite côté template via le dto
+                model.addAttribute("demandeForm", form);
+                model.addAttribute("demandeOrigineId", idDemandeOrigine);
+            } catch (Exception e) {
+                model.addAttribute("errorMessage", "Demande d'origine introuvable");
+            }
+        } else {
+            // CAS 2.2 : TRANSFERT SANS ANTÉCÉDENT (non implémenté dans cette tâche)
+            form.setAvecAntecedent(false);
+            model.addAttribute("demandeForm", form);
+        }
+
+        model.addAttribute("demandeForm", form);
+        model.addAttribute("typesVisa", typeVisaRepository.findAll());
+        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+        model.addAttribute("nationalites", nationaliteRepository.findAll());
+        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+        model.addAttribute("piecesSpecifiques", idTypeVisa != null ? demandeService.getPiecesFormulaire(idTypeVisa) : List.of());
+        model.addAttribute("pageTitle", "Demande de Transfert");
+        model.addAttribute("formAction", "/transfert/formulaire");
+        model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+        model.addAttribute("cancelUrl", "/demandes");
+        return "demande/formulaire";
     }
 
     /**
@@ -76,8 +116,95 @@ public class TransfertController {
     public String soumettreFormulaire(
             @Valid @ModelAttribute("demandeForm") DemandeCreateDTO dto,
             BindingResult result,
-            Model model) {
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        // Si erreurs de validation Bean Validation
+        if (result.hasErrors()) {
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+            model.addAttribute("pageTitle", "Demande de Transfert");
+            model.addAttribute("formAction", "/transfert/formulaire");
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+            model.addAttribute("cancelUrl", "/demandes");
+            return "demande/formulaire";
+        }
+
+        try {
+            // CAS 2.1 : TRANSFERT AVEC ANTÉCÉDENT
+            if (dto.getIdDemandeOrigine() != null && dto.getAvecAntecedent() != null && dto.getAvecAntecedent()) {
+                TransfertCreateDTO transfertDTO = TransfertCreateDTO.builder()
+                        .idDemandeOrigine(dto.getIdDemandeOrigine())
+                        .passeportNouveau(dto.getPasseportNouveauDTO())
+                        .piecesFournies(dto.getPiecesFournies())
+                        .build();
+
+                var response = demandeService.creerTransfert(transfertDTO);
+                redirectAttributes.addFlashAttribute("successMessage", "Transfert créé avec succès. Référence : #" + response.getId());
+                return "redirect:/transfert/" + response.getId() + "/confirmation";
+            }
+
+            // Cas par défaut : erreur
+            model.addAttribute("errorMessage", "Paramètres manquants pour le transfert");
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+            model.addAttribute("pageTitle", "Demande de Transfert");
+            model.addAttribute("formAction", "/transfert/formulaire");
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+            model.addAttribute("cancelUrl", "/demandes");
+            return "demande/formulaire";
+
+        } catch (BusinessException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+            model.addAttribute("pageTitle", "Demande de Transfert");
+            model.addAttribute("formAction", "/transfert/formulaire");
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+            model.addAttribute("cancelUrl", "/demandes");
+            return "demande/formulaire";
+        }
+    }
+
+    /**
+     * GET /transfert/recherche
+     * Afficher le formulaire de recherche de demande d'origine
+     */
+    @GetMapping("/recherche")
+    public String afficherRecherche(Model model) {
+        model.addAttribute("criteresRecherche", new DemandeRechercheDTO());
+        model.addAttribute("pageTitle", "Recherche de demande d'origine pour transfert");
+        return "transfert/recherche";
+    }
+
+    /**
+     * POST /transfert/recherche
+     * Traiter la recherche et afficher les résultats
+     */
+    @PostMapping("/recherche")
+    public String traiterRecherche(@ModelAttribute("criteresRecherche") DemandeRechercheDTO criteres,
+                                   Model model) {
+        try {
+            List<DemandeResumeeDTO> resultats = demandeService.rechercherDemandesApprouvees(criteres);
+            model.addAttribute("resultats", resultats);
+            model.addAttribute("criteresRecherche", criteres);
+            model.addAttribute("pageTitle", "Résultats de recherche");
+            return "transfert/recherche";
+        } catch (BusinessException e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            model.addAttribute("criteresRecherche", criteres);
+            model.addAttribute("pageTitle", "Recherche de demande d'origine pour transfert");
+            return "transfert/recherche";
+        }
     }
 
     /**
@@ -86,6 +213,14 @@ public class TransfertController {
      */
     @GetMapping("/{id}/confirmation")
     public String afficherConfirmation(@PathVariable Long id, Model model) {
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        try {
+            var demande = demandeService.getDemande(id);
+            model.addAttribute("demande", demande);
+            model.addAttribute("successMessage", "Transfert créé avec succès");
+            return "demande/confirmation";
+        } catch (ResourceNotFoundException e) {
+            model.addAttribute("errorMessage", "Demande introuvable");
+            return "redirect:/demandes";
+        }
     }
 }

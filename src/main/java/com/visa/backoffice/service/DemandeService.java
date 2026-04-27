@@ -39,6 +39,8 @@ public class DemandeService {
     private final PasseportService passeportService;
     private final DemandeMapper demandeMapper;
     private final PieceService pieceService;
+    private final VisaService visaService;
+    private final CarteResidentService carteResidentService;
 
     public DemandeService(DemandeRepository demandeRepository,
                          HistoriqueStatutRepository historiqueStatutRepository,
@@ -52,7 +54,10 @@ public class DemandeService {
                          DemandeurRepository demandeurRepository,
                          PasseportService passeportService,
                          DemandeMapper demandeMapper,
-                         PieceService pieceService) {
+                         PieceService pieceService,
+                         VisaService visaService,
+
+                         CarteResidentService carteResidentService) {
         this.demandeRepository = demandeRepository;
         this.historiqueStatutRepository = historiqueStatutRepository;
         this.demandePieceRepository = demandePieceRepository;
@@ -66,6 +71,8 @@ public class DemandeService {
         this.passeportService = passeportService;
         this.demandeMapper = demandeMapper;
         this.pieceService = pieceService;
+        this.visaService = visaService;
+        this.carteResidentService = carteResidentService;
     }
 
     /**
@@ -351,15 +358,62 @@ public class DemandeService {
 
     /**
      * Rechercher les demandes APPROUVEE type NOUVELLE
-     * Utilisé par Dev2 pour DUPLICATA avec antécédent
+     * Utilisé pour TRANSFERT avec antécédent
      *
      * @param criteresRecherche DemandeRechercheDTO (min 1 critère requis)
      * @return List<DemandeResumeeDTO>
      * @throws BusinessException if no criteria provided
      */
     public List<DemandeResumeeDTO> rechercherDemandesApprouvees(DemandeRechercheDTO criteresRecherche) {
-        // Dev2 implémente ici (Dev1 peut aussi)
-        throw new UnsupportedOperationException("À implémenter par Dev2");
+        // Valider qu'au moins un critère est fourni
+        if (criteresRecherche == null || 
+            (criteresRecherche.getNom() == null || criteresRecherche.getNom().trim().isEmpty()) && 
+            (criteresRecherche.getNumeroPasSeport() == null || criteresRecherche.getNumeroPasSeport().trim().isEmpty()) && 
+            (criteresRecherche.getReferenceVisa() == null || criteresRecherche.getReferenceVisa().trim().isEmpty())) {
+            throw new BusinessException("Au moins un critère de recherche est requis");
+        }
+
+        // Récupérer les statuts et types requis
+        StatutDemande statutApprouve = statutDemandeRepository.findByLibelle("APPROUVEE")
+                .orElseThrow(() -> new ResourceNotFoundException("Statut APPROUVEE introuvable"));
+        
+        TypeDemande typeNouvelle = typeDemandeRepository.findByLibelle("NOUVELLE")
+                .orElseThrow(() -> new ResourceNotFoundException("Type NOUVELLE introuvable"));
+
+        // Construire la recherche dynamique
+        List<Demande> demandes = demandeRepository.findAll().stream()
+                .filter(d -> d.getStatutDemande() != null && d.getStatutDemande().getId().equals(statutApprouve.getId()))
+                .filter(d -> d.getTypeDemande() != null && d.getTypeDemande().getId().equals(typeNouvelle.getId()))
+                .filter(d -> {
+                    Demandeur demandeur = d.getDemandeur();
+                    if (demandeur == null) return false;
+                    
+                    boolean matchNom = criteresRecherche.getNom() == null || 
+                        criteresRecherche.getNom().trim().isEmpty() ||
+                        demandeur.getNom().toLowerCase().contains(criteresRecherche.getNom().toLowerCase());
+                    
+                    boolean matchPasseport = criteresRecherche.getNumeroPasSeport() == null || 
+                        criteresRecherche.getNumeroPasSeport().trim().isEmpty() ||
+                        (d.getVisaTransformable() != null && 
+                         d.getVisaTransformable().getPasseport() != null &&
+                         d.getVisaTransformable().getPasseport().getNumero().toLowerCase()
+                            .contains(criteresRecherche.getNumeroPasSeport().toLowerCase()));
+                    
+                    boolean matchReferenceVisa = criteresRecherche.getReferenceVisa() == null || 
+                        criteresRecherche.getReferenceVisa().trim().isEmpty() ||
+                        (d.getVisaTransformable() != null &&
+                         d.getVisaTransformable().getReferenceVisa() != null &&
+                         d.getVisaTransformable().getReferenceVisa().toLowerCase()
+                            .contains(criteresRecherche.getReferenceVisa().toLowerCase()));
+                    
+                    return matchNom && matchPasseport && matchReferenceVisa;
+                })
+                .limit(50) // Limiter les résultats
+                .toList();
+
+        return demandes.stream()
+                .map(demandeMapper::toResumeeDTO)
+                .toList();
     }
 
     /**
@@ -384,7 +438,73 @@ public class DemandeService {
      * @throws BusinessException if origine invalid, doublon, or same passeport number
      */
     public DemandeResponseDTO creerTransfert(TransfertCreateDTO dto) {
-        // Dev1 implémente ici
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        // ÉTAPE 1 — Vérifier la demande d'origine
+        Demande demandeOrigine = demandeRepository.findById(dto.getIdDemandeOrigine())
+                .orElseThrow(() -> new ResourceNotFoundException("Demande d'origine introuvable : id=" + dto.getIdDemandeOrigine()));
+
+        // Vérifier statut = APPROUVEE et type = NOUVELLE
+        if (demandeOrigine.getStatutDemande() == null || !demandeOrigine.getStatutDemande().getLibelle().equals("APPROUVEE")) {
+            throw new BusinessException("La demande d'origine doit avoir un statut APPROUVÉE");
+        }
+        if (demandeOrigine.getTypeDemande() == null || !demandeOrigine.getTypeDemande().getLibelle().equals("NOUVELLE")) {
+            throw new BusinessException("La demande d'origine doit être de type NOUVELLE");
+        }
+
+        // ÉTAPE 2 — Vérifier absence doublon TRANSFERT actif (statut CREE)
+        boolean doublonExists = demandeRepository.findAll().stream()
+                .anyMatch(d -> d.getIdDemandeOrigine() != null
+                        && d.getIdDemandeOrigine().equals(dto.getIdDemandeOrigine())
+                        && d.getTypeDemande() != null
+                        && d.getTypeDemande().getLibelle().equals("TRANSFERT")
+                        && d.getStatutDemande() != null
+                        && d.getStatutDemande().getLibelle().equals("CREE"));
+        if (doublonExists) {
+            throw new BusinessException("Un transfert actif existe déjà pour cette demande");
+        }
+
+        // ÉTAPE 3 — Créer nouveau Passeport
+        Passeport passeportAncien = demandeOrigine.getVisaTransformable().getPasseport();
+        String numéroAncien = passeportAncien != null ? passeportAncien.getNumero() : null;
+        String numéroNouveau = dto.getPasseportNouveau().getNumero();
+
+        // Vérifier que le nouveau numéro est différent de l'ancien
+        if (numéroAncien != null && numéroAncien.equals(numéroNouveau)) {
+            throw new BusinessException("Le nouveau numéro de passeport doit être différent de l'ancien");
+        }
+
+        Passeport passeportNouveau = passeportService.creer(dto.getPasseportNouveau(), demandeOrigine.getDemandeur());
+
+        // ÉTAPE 4 — Créer demande TRANSFERT
+        TypeDemande typeTransfert = typeDemandeRepository.findByLibelle("TRANSFERT")
+                .orElseThrow(() -> new ResourceNotFoundException("TypeDemande TRANSFERT introuvable en base"));
+
+        StatutDemande statutCree = statutDemandeRepository.findByLibelle("CREE")
+                .orElseThrow(() -> new ResourceNotFoundException("StatutDemande CREE introuvable en base"));
+
+        Demande demandTransfert = new Demande();
+        demandTransfert.setDateDemande(LocalDateTime.now());
+        demandTransfert.setDemandeur(demandeOrigine.getDemandeur());
+        demandTransfert.setVisaTransformable(demandeOrigine.getVisaTransformable());
+        demandTransfert.setTypeVisa(demandeOrigine.getTypeVisa());
+        demandTransfert.setTypeDemande(typeTransfert);
+        demandTransfert.setStatutDemande(statutCree);
+        demandTransfert.setIdDemandeOrigine(demandeOrigine.getId());
+        demandTransfert = demandeRepository.save(demandTransfert);
+
+        // ÉTAPE 5 — Désactiver l'ancien visa
+        visaService.desactiver(demandeOrigine.getId());
+
+        // ÉTAPE 6 — Créer nouveau visa avec nouveau passeport
+        visaService.creer(demandTransfert, passeportNouveau);
+
+        // ÉTAPE 7 — Créer historique statut
+        creerHistoriqueStatut(demandTransfert, statutCree, "Création de la demande TRANSFERT");
+
+        // ÉTAPE 8 — Lier les pièces
+        lierPiecesADemande(demandTransfert, dto.getPiecesFournies(), demandeOrigine.getTypeVisa());
+
+        // ÉTAPE 9 — Recharger et retourner DTO
+        Demande demandTransfertFinal = demandeRepository.findById(demandTransfert.getId()).orElseThrow();
+        return demandeMapper.toResponseDTO(demandTransfertFinal);
     }
 }
