@@ -168,3 +168,26 @@ java -jar target/backoffice-0.0.1-SNAPSHOT.jar
 3. **Tester**
    - `http://localhost:8080/` → "Backend Visa OK"
 
+## Utilisation rapide de l'application
+
+1. Démarrer PostgreSQL puis lancer l'application depuis la racine du projet.
+2. Ouvrir `http://localhost:8080` dans le navigateur.
+3. Pour charger une base de travail de test, exécuter d'abord `script/240426.sql`, puis `script/270426_seed_etu003350_avec_antecedent.sql`.
+4. Aller sur `http://localhost:8080/duplicata/formulaire`.
+5. Choisir un duplicata avec antécédent pour rechercher une demande approuvée, ou repartir d'une base vide de test pour le flux sans antécédent.
+6. Après soumission, consulter la page de confirmation du duplicata.
+
+## Seeds de test ETU003350
+
+- `script/270426_seed_etu003350_avec_antecedent.sql` insère un cas complet avec demandeur, passeport, visa transformable, demande NOUVELLE APPROUVEE, historique, visa et carte résident.
+- `script/270426_seed_etu003350_sans_antecedent.sql` insère seulement les référentiels minimum, sans dossier initial, pour laisser l'application créer les données pendant le flux automatique.
+- `script/270426.sql` ajoute la colonne `id_demande_origine` si elle n'existe pas encore.
+
+## Ce que le test insère
+
+- Cas avec antécédent: la base contient déjà la demande d'origine approuvée. Quand tu crées le duplicata, l'application ajoute une nouvelle `demande` de type `DUPLICATA`, un `historique_statut`, les `demande_piece` sélectionnées et une nouvelle `carte_resident`.
+- Cas sans antécédent: la base ne contient pas de dossier initial. Quand tu valides le formulaire, l'application crée d'abord une `demande` `NOUVELLE`, l'approuve automatiquement, puis crée la `demande` `DUPLICATA` et la nouvelle `carte_resident`.
+- Dans les deux cas, le `visa` de la demande d'origine ne doit pas être recréé pour le duplicata.
+
+
+

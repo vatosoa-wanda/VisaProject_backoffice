@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -31,14 +32,17 @@ public class VisaService {
      * @throws BusinessException if passeport is null
      */
     public Visa creer(Demande demande, Passeport passeport) {
-        // Dev1 implémente ici
-        // ✅ Valider passeport != null
-        // ✅ Générer referenceVisa (ex: "VIS-" + timestamp)
-        // ✅ Set dateDebut = LocalDate.now()
-        // ✅ Set dateFin = null
-        // ✅ Link à demande et passeport
-        // ✅ Save et return
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        if (passeport == null) {
+            throw new BusinessException("Passeport requis pour créer un visa");
+        }
+
+        Visa visa = new Visa();
+        visa.setReferenceVisa("VISA-" + LocalDateTime.now().toString().replace(':', '-').replace('.', '-'));
+        visa.setDateDebut(LocalDate.now());
+        visa.setDateFin(null);
+        visa.setPasseport(passeport);
+        visa.setDemande(demande);
+        return visaRepository.save(visa);
     }
 
     /**
@@ -49,11 +53,13 @@ public class VisaService {
      * @throws BusinessException if no active visa found
      */
     public void desactiver(Long idDemande) {
-        // Dev1 implémente ici
-        // ✅ Charger visa actif de la demande (dateFin = null)
-        // ✅ Set dateFin = LocalDate.now()
-        // ✅ Save
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        Visa visaActif = visaRepository.findByDemandeId(idDemande);
+        if (visaActif == null || visaActif.getDateFin() != null) {
+            throw new BusinessException("Aucun visa actif trouvé pour la demande id=" + idDemande);
+        }
+
+        visaActif.setDateFin(LocalDate.now());
+        visaRepository.save(visaActif);
     }
 
     /**

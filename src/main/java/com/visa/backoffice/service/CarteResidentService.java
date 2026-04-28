@@ -29,15 +29,68 @@ public class CarteResidentService {
      * @throws BusinessException if passeport is null
      */
     public CarteResident creer(Demande demande, Passeport passeport) {
-        // Dev1 implémente ici
-        // ✅ Valider passeport != null → BusinessException sinon
-        // ✅ Générer numeroCarte UNIQUE (ex: "RES-" + timestamp + random)
-        // ✅ Vérifier numeroCarte n'existe pas déjà
-        // ✅ Set dateDebut = LocalDate.now()
-        // ✅ Set dateFin = null
-        // ✅ Link à demande et passeport
-        // ✅ Save et return
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        if (passeport == null) {
+            throw new BusinessException("Passeport requis pour créer une carte résident");
+        }
+
+        String numero;
+        int attempts = 0;
+        do {
+            long ts = System.currentTimeMillis() / 1000L;
+            int rand = (int) (Math.random() * 9000) + 1000;
+            numero = String.format("CRD-%d-%04d", ts, rand);
+            attempts++;
+            if (attempts > 5) break;
+        } while (carteResidentRepository.findByNumeroCarte(numero) != null);
+
+        CarteResident carte = new CarteResident();
+        carte.setNumeroCarte(numero);
+        carte.setDateDebut(java.time.LocalDate.now());
+        carte.setDateFin(null);
+        carte.setPasseport(passeport);
+        carte.setDemande(demande);
+
+        return carteResidentRepository.save(carte);
+    }
+
+    /**
+     * Crée une nouvelle carte résident pour un duplicata.
+     * La nouvelle carte est liée à la demande DUPLICATA et reprend, si possible,
+     * la date de fin de la carte de la demande d'origine.
+     */
+    public CarteResident creerPourDuplicata(Demande demandeDuplicata, Passeport passeport) {
+        if (demandeDuplicata == null) {
+            throw new BusinessException("Demande duplicata requise pour créer une carte résident");
+        }
+        if (passeport == null) {
+            throw new BusinessException("Passeport requis pour créer une carte résident");
+        }
+
+        String numero;
+        int attempts = 0;
+        do {
+            long ts = System.currentTimeMillis() / 1000L;
+            int rand = (int) (Math.random() * 9000) + 1000;
+            numero = String.format("CRD-%d-%04d", ts, rand);
+            attempts++;
+            if (attempts > 5) {
+                break;
+            }
+        } while (carteResidentRepository.findByNumeroCarte(numero) != null);
+
+        CarteResident carteOrigine = null;
+        if (demandeDuplicata.getIdDemandeOrigine() != null) {
+            carteOrigine = carteResidentRepository.findByDemandeId(demandeDuplicata.getIdDemandeOrigine());
+        }
+
+        CarteResident carte = new CarteResident();
+        carte.setNumeroCarte(numero);
+        carte.setDateDebut(java.time.LocalDate.now());
+        carte.setDateFin(carteOrigine != null ? carteOrigine.getDateFin() : null);
+        carte.setPasseport(passeport);
+        carte.setDemande(demandeDuplicata);
+
+        return carteResidentRepository.save(carte);
     }
 
     /**

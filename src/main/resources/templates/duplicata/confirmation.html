@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation Duplicata</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <div class="alert alert-success">
+        <h1 class="h3 mb-1">Duplicata enregistré avec succès</h1>
+        <p class="mb-0">La demande de duplicata a bien été créée et peut maintenant être suivie dans le système.</p>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <strong>Récapitulatif</strong>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <tbody>
+                <tr>
+                    <th>ID</th>
+                    <td th:text="${demande.id}"></td>
+                </tr>
+                <tr>
+                    <th>Date</th>
+                    <td th:text="${#temporals.format(demande.dateDemande, 'dd/MM/yyyy HH:mm')}"></td>
+                </tr>
+                <tr>
+                    <th>Demandeur</th>
+                    <td th:text="${demande.nomDemandeur + ' ' + demande.prenomDemandeur}"></td>
+                </tr>
+                <tr>
+                    <th>Numéro passeport</th>
+                    <td th:text="${demande.numeroPasSeport}"></td>
+                </tr>
+                <tr>
+                    <th>Type de demande</th>
+                    <td th:text="${demande.typeDemande}"></td>
+                </tr>
+                <tr>
+                    <th>Statut</th>
+                    <td th:text="${demande.statutDemande}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <a th:href="@{/duplicata/formulaire}" class="btn btn-outline-primary">Nouveau duplicata</a>
+        <a th:href="@{/}" class="btn btn-secondary">Retour accueil</a>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

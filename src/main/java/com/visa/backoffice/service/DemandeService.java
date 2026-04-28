@@ -37,6 +37,8 @@ public class DemandeService {
     private final DemandeurService demandeurService;
     private final DemandeurRepository demandeurRepository;
     private final PasseportService passeportService;
+    private final VisaService visaService;
+    private final CarteResidentService carteResidentService;
     private final DemandeMapper demandeMapper;
     private final PieceService pieceService;
 
@@ -52,7 +54,9 @@ public class DemandeService {
                          DemandeurRepository demandeurRepository,
                          PasseportService passeportService,
                          DemandeMapper demandeMapper,
-                         PieceService pieceService) {
+                         PieceService pieceService,
+                         VisaService visaService,
+                         CarteResidentService carteResidentService) {
         this.demandeRepository = demandeRepository;
         this.historiqueStatutRepository = historiqueStatutRepository;
         this.demandePieceRepository = demandePieceRepository;
@@ -64,8 +68,10 @@ public class DemandeService {
         this.demandeurService = demandeurService;
         this.demandeurRepository = demandeurRepository;
         this.passeportService = passeportService;
+        this.visaService = visaService;
         this.demandeMapper = demandeMapper;
         this.pieceService = pieceService;
+        this.carteResidentService = carteResidentService;
     }
 
     /**
@@ -339,14 +345,35 @@ public class DemandeService {
      * @throws BusinessException if statut != CREE or typeDemande != NOUVELLE
      */
     public void approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique) {
-        // Dev1 implémente ici
-        // 1. Charger demande → erreur si absente
-        // 2. Vérifier statut=CREE et type=NOUVELLE → BusinessException sinon
-        // 3. Passer statut → APPROUVEE, sauvegarder
-        // 4. Créer historique ("Approbation automatique" si automatique=true)
-        // 5. visaService.creer(demande, passeport)           ← RG-01
-        // 6. carteResidentService.creer(demande, passeport)  ← RG-01
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        Demande demande = demandeRepository.findById(idDemande)
+                .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + idDemande));
+
+        if (demande.getTypeDemande() == null || !"NOUVELLE".equalsIgnoreCase(demande.getTypeDemande().getLibelle())) {
+            throw new BusinessException("Seules les demandes de type NOUVELLE peuvent être approuvées ici");
+        }
+        if (demande.getStatutDemande() == null || !"CREE".equalsIgnoreCase(demande.getStatutDemande().getLibelle())) {
+            throw new BusinessException("La demande doit être au statut CREE avant approbation");
+        }
+
+        StatutDemande statutApprouvee = statutDemandeRepository.findByLibelle("APPROUVEE")
+                .orElseThrow(() -> new ResourceNotFoundException("StatutDemande APPROUVEE introuvable en base"));
+
+        demande.setStatutDemande(statutApprouvee);
+        demandeRepository.save(demande);
+
+        String motif = (automatique ? "Approbation automatique" : "Approbation manuelle");
+        if (commentaire != null && !commentaire.isBlank()) {
+            motif = motif + " - " + commentaire;
+        }
+        creerHistoriqueStatut(demande, statutApprouvee, motif);
+
+        Passeport passeport = demande.getVisaTransformable() != null ? demande.getVisaTransformable().getPasseport() : null;
+        if (passeport == null) {
+            throw new BusinessException("Passeport introuvable sur la demande");
+        }
+
+        visaService.creer(demande, passeport);
+        carteResidentService.creer(demande, passeport);
     }
 
     /**
@@ -358,8 +385,47 @@ public class DemandeService {
      * @throws BusinessException if no criteria provided
      */
     public List<DemandeResumeeDTO> rechercherDemandesApprouvees(DemandeRechercheDTO criteresRecherche) {
-        // Dev2 implémente ici (Dev1 peut aussi)
-        throw new UnsupportedOperationException("À implémenter par Dev2");
+        if ((criteresRecherche.getNom() == null || criteresRecherche.getNom().isBlank())
+                && (criteresRecherche.getNumeroPasSeport() == null || criteresRecherche.getNumeroPasSeport().isBlank())
+                && (criteresRecherche.getReferenceVisa() == null || criteresRecherche.getReferenceVisa().isBlank())) {
+            throw new BusinessException("Au moins un critère de recherche est requis");
+        }
+
+        return demandeRepository.findByStatutDemandeLibelleAndTypeDemandeLibelle("APPROUVEE", "NOUVELLE").stream()
+                .filter(d -> d.getStatutDemande() != null && "APPROUVEE".equalsIgnoreCase(d.getStatutDemande().getLibelle()))
+                .filter(d -> d.getTypeDemande() != null && "NOUVELLE".equalsIgnoreCase(d.getTypeDemande().getLibelle()))
+                .filter(d -> {
+                    boolean match = true;
+                    if (criteresRecherche.getNom() != null && !criteresRecherche.getNom().isBlank()) {
+                        match = match && d.getDemandeur() != null && d.getDemandeur().getNom() != null && d.getDemandeur().getNom().toLowerCase().contains(criteresRecherche.getNom().toLowerCase());
+                    }
+                    if (criteresRecherche.getNumeroPasSeport() != null && !criteresRecherche.getNumeroPasSeport().isBlank()) {
+                        match = match && d.getVisaTransformable() != null && d.getVisaTransformable().getPasseport() != null
+                                && criteresRecherche.getNumeroPasSeport().equalsIgnoreCase(d.getVisaTransformable().getPasseport().getNumero());
+                    }
+                    if (criteresRecherche.getReferenceVisa() != null && !criteresRecherche.getReferenceVisa().isBlank()) {
+                        match = match && d.getVisaTransformable() != null && d.getVisaTransformable().getReferenceVisa() != null
+                                && criteresRecherche.getReferenceVisa().equalsIgnoreCase(d.getVisaTransformable().getReferenceVisa());
+                    }
+                    return match;
+                })
+                .map(d -> {
+                    java.time.LocalDateTime dateApproval = d.getHistoriques().stream()
+                            .filter(h -> h.getStatutDemande() != null && "APPROUVEE".equalsIgnoreCase(h.getStatutDemande().getLibelle()))
+                            .map(h -> h.getDateChangement())
+                            .max(java.time.LocalDateTime::compareTo)
+                            .orElse(null);
+
+                    return DemandeResumeeDTO.builder()
+                            .id(d.getId())
+                            .demandeurNom(d.getDemandeur() != null ? d.getDemandeur().getNom() : null)
+                            .demandeurPrenom(d.getDemandeur() != null ? d.getDemandeur().getPrenom() : null)
+                            .numeroPasSeport(d.getVisaTransformable() != null && d.getVisaTransformable().getPasseport() != null ? d.getVisaTransformable().getPasseport().getNumero() : null)
+                            .referenceVisa(d.getVisaTransformable() != null ? d.getVisaTransformable().getReferenceVisa() : null)
+                            .dateApproval(dateApproval)
+                            .build();
+                })
+                .toList();
     }
 
     /**
@@ -371,8 +437,52 @@ public class DemandeService {
      * @throws BusinessException if origine invalid or doublon exists
      */
     public DemandeResponseDTO creerDuplicata(DuplicataCreateDTO dto) {
-        // Dev2 implémente ici
-        throw new UnsupportedOperationException("À implémenter par Dev2");
+        com.visa.backoffice.model.Demande origine = demandeRepository.findById(dto.getIdDemandeOrigine())
+                .orElseThrow(() -> new ResourceNotFoundException("Demande origine introuvable : id=" + dto.getIdDemandeOrigine()));
+
+        if (origine.getTypeDemande() == null || !"NOUVELLE".equalsIgnoreCase(origine.getTypeDemande().getLibelle())) {
+            throw new BusinessException("La demande origine doit être de type NOUVELLE");
+        }
+        if (origine.getStatutDemande() == null || !"APPROUVEE".equalsIgnoreCase(origine.getStatutDemande().getLibelle())) {
+            throw new BusinessException("La demande origine doit être APPROUVEE");
+        }
+
+        // Vérifier doublon : DUPLICATA en statut CREE existant pour même origine
+        if (demandeRepository.findFirstByIdDemandeOrigineAndTypeDemandeLibelleAndStatutDemandeLibelle(
+            origine.getId(), "DUPLICATA", "CREE").isPresent()) {
+            throw new BusinessException("Un duplicata en cours existe déjà pour cette demande origine");
+        }
+
+        TypeDemande typeDuplicata = typeDemandeRepository.findByLibelle("DUPLICATA")
+                .orElseThrow(() -> new ResourceNotFoundException("TypeDemande DUPLICATA introuvable en base"));
+        StatutDemande statutCree = statutDemandeRepository.findByLibelle("CREE")
+                .orElseThrow(() -> new ResourceNotFoundException("StatutDemande CREE introuvable en base"));
+
+        com.visa.backoffice.model.Demande duplicata = new com.visa.backoffice.model.Demande();
+        duplicata.setDateDemande(java.time.LocalDateTime.now());
+        duplicata.setDemandeur(origine.getDemandeur());
+        duplicata.setVisaTransformable(origine.getVisaTransformable());
+        duplicata.setTypeVisa(origine.getTypeVisa());
+        duplicata.setTypeDemande(typeDuplicata);
+        duplicata.setStatutDemande(statutCree);
+        duplicata.setIdDemandeOrigine(origine.getId());
+
+        duplicata = demandeRepository.save(duplicata);
+
+        creerHistoriqueStatut(duplicata, statutCree, "Création duplicata (origine id=" + origine.getId() + ")");
+
+        // Lier pièces
+        lierPiecesADemande(duplicata, dto.getPiecesFournies(), origine.getTypeVisa());
+
+        // Créer la nouvelle carte résident liée au duplicata
+        com.visa.backoffice.model.Passeport passeport = origine.getVisaTransformable() != null ? origine.getVisaTransformable().getPasseport() : null;
+        if (passeport == null) {
+            throw new BusinessException("Passeport introuvable sur la demande origine");
+        }
+        carteResidentService.creerPourDuplicata(duplicata, passeport);
+
+        com.visa.backoffice.model.Demande demandeFinal = demandeRepository.findById(duplicata.getId()).orElseThrow();
+        return demandeMapper.toResponseDTO(demandeFinal);
     }
 
     /**
