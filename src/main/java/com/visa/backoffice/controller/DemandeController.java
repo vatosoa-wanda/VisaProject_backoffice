@@ -247,12 +247,40 @@ public class DemandeController {
      * Supprimer une demande (version POST pour formulaire HTML)
      */
     @PostMapping("/{id}/supprimer")
-    public String supprimerDemandeForm(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String supprimerDemandePost(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        demandeService.supprimerDemande(id);
+        redirectAttributes.addFlashAttribute("successMessage", "Demande supprimée avec succès");
+        return "redirect:/demandes";
+    }
+
+    /**
+     * POST /demandes/{id}/approuver
+     * Approuver une demande NOUVELLE
+     */
+    @PostMapping("/{id}/approuver")
+    public String approuverDemande(@PathVariable Long id, 
+                                   @RequestParam(required = false) String commentaire,
+                                   RedirectAttributes redirectAttributes) {
         try {
-            demandeService.supprimerDemande(id);
-            redirectAttributes.addFlashAttribute("successMessage", "Demande supprimée avec succès");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Erreur lors de la suppression : " + e.getMessage());
+            demandeService.approuverDemandeNouvelle(id, commentaire, false);
+            redirectAttributes.addFlashAttribute("successMessage", "Demande approuvée avec succès");
+        } catch (BusinessException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/demandes";
+    }
+
+    /**
+     * GET /demandes/{id}/approuver
+     * Endpoint pour approuver rapidement une demande (pour les tests)
+     */
+    @GetMapping("/{id}/approuver")
+    public String approuverDemandeRapide(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            demandeService.approuverDemandeNouvelle(id, "Approbation rapide via URL", true);
+            redirectAttributes.addFlashAttribute("successMessage", "Demande approuvée avec succès");
+        } catch (BusinessException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
         return "redirect:/demandes";
     }

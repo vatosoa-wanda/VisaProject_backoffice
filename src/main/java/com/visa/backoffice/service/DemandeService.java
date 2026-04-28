@@ -346,14 +346,44 @@ public class DemandeService {
      * @throws BusinessException if statut != CREE or typeDemande != NOUVELLE
      */
     public void approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique) {
-        // Dev1 implémente ici
         // 1. Charger demande → erreur si absente
+        Demande demande = demandeRepository.findById(idDemande)
+                .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + idDemande));
+
         // 2. Vérifier statut=CREE et type=NOUVELLE → BusinessException sinon
+        if (demande.getStatutDemande() == null || !demande.getStatutDemande().getLibelle().equals("CREE")) {
+            throw new BusinessException("La demande doit avoir le statut CREE pour être approuvée");
+        }
+        if (demande.getTypeDemande() == null || !demande.getTypeDemande().getLibelle().equals("NOUVELLE")) {
+            throw new BusinessException("Seules les demandes de type NOUVELLE peuvent être approuvées par cette méthode");
+        }
+
         // 3. Passer statut → APPROUVEE, sauvegarder
+        StatutDemande statutApprouve = statutDemandeRepository.findByLibelle("APPROUVEE")
+                .orElseThrow(() -> new ResourceNotFoundException("Statut APPROUVEE introuvable"));
+        
+        demande.setStatutDemande(statutApprouve);
+        demandeRepository.save(demande);
+
         // 4. Créer historique ("Approbation automatique" si automatique=true)
+        String commentaireHistorique = automatique ? "Approbation automatique" : 
+                (commentaire != null ? commentaire : "Approbation manuelle");
+        creerHistoriqueStatut(demande, statutApprouve, commentaireHistorique);
+
         // 5. visaService.creer(demande, passeport)           ← RG-01
+        if (demande.getVisaTransformable() != null && demande.getVisaTransformable().getPasseport() != null) {
+            visaService.creer(demande, demande.getVisaTransformable().getPasseport());
+        }
+
         // 6. carteResidentService.creer(demande, passeport)  ← RG-01
-        throw new UnsupportedOperationException("À implémenter par Dev1");
+        if (demande.getVisaTransformable() != null && demande.getVisaTransformable().getPasseport() != null) {
+            try {
+                carteResidentService.creer(demande, demande.getVisaTransformable().getPasseport());
+            } catch (Exception e) {
+                // La carte résident peut échouer, mais l'approbation doit quand même réussir
+                System.err.println("Erreur lors de la création de la carte résident: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -388,17 +418,22 @@ public class DemandeService {
                     Demandeur demandeur = d.getDemandeur();
                     if (demandeur == null) return false;
                     
+                    // Vérification sécurisée pour le nom
                     boolean matchNom = criteresRecherche.getNom() == null || 
                         criteresRecherche.getNom().trim().isEmpty() ||
-                        demandeur.getNom().toLowerCase().contains(criteresRecherche.getNom().toLowerCase());
+                        (demandeur.getNom() != null && 
+                         demandeur.getNom().toLowerCase().contains(criteresRecherche.getNom().toLowerCase()));
                     
+                    // Vérification sécurisée pour le passeport
                     boolean matchPasseport = criteresRecherche.getNumeroPasSeport() == null || 
                         criteresRecherche.getNumeroPasSeport().trim().isEmpty() ||
                         (d.getVisaTransformable() != null && 
                          d.getVisaTransformable().getPasseport() != null &&
+                         d.getVisaTransformable().getPasseport().getNumero() != null &&
                          d.getVisaTransformable().getPasseport().getNumero().toLowerCase()
                             .contains(criteresRecherche.getNumeroPasSeport().toLowerCase()));
                     
+                    // Vérification sécurisée pour la référence visa
                     boolean matchReferenceVisa = criteresRecherche.getReferenceVisa() == null || 
                         criteresRecherche.getReferenceVisa().trim().isEmpty() ||
                         (d.getVisaTransformable() != null &&

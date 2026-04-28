@@ -3,445 +3,846 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Demande de Visa Transformable</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <style>
+
         .section-header {
+
             background-color: #f8f9fa;
+
             padding: 15px;
+
             border-radius: 5px;
+
             margin-top: 20px;
+
             margin-bottom: 15px;
+
         }
+
         .badge-obligatoire {
+
             color: red;
+
             font-weight: bold;
+
         }
+
         .alert-error {
+
             color: #d32f2f;
+
         }
+
     </style>
+
 </head>
+
 <body>
+
+
 
 <div class="container mt-5">
 
+
+
     <!-- Titre dynamique selon le type de demande -->
+
     <div th:if="${demandeForm != null && demandeForm.typeDemande != null}">
+
         <h1 class="mb-4">
+
             <span th:if="${demandeForm.typeDemande == 'NOUVELLE'}">NOUVELLE DEMANDE DE VISA</span>
+
             <span th:if="${demandeForm.typeDemande == 'DUPLICATA'}">DEMANDE DE DUPLICATA</span>
+
             <span th:if="${demandeForm.typeDemande == 'TRANSFERT'}">DEMANDE DE TRANSFERT</span>
+
         </h1>
+
         <!-- Bannière pour cas sans antécédent -->
+
         <div th:if="${demandeForm.avecAntecedent == false}"
+
              class="alert alert-info mb-4">
+
             <strong>Étape 1/2 :</strong> Votre dossier sera approuvé automatiquement,
+
             puis <span th:if="${demandeForm.typeDemande == 'DUPLICATA'}">le duplicata</span>
+
             <span th:if="${demandeForm.typeDemande == 'TRANSFERT'}">le transfert</span>
+
             sera créé.
+
         </div>
-        
-        <!-- Affichage des données antérieures pour TRANSFERT -->
-        <div th:if="${demandeForm != null and demandeForm.typeDemande == 'TRANSFERT' and demandeOrigineId != null}" 
-             class="alert alert-success mb-4">
-            <h5><i class="bi bi-info-circle"></i> Données de la demande d'origine</h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <strong>Référence :</strong> <span th:text="'#' + ${demandeOrigineId}">#123</span><br>
-                    <strong>Type de visa :</strong> <span th:text="${demandeForm.typeVisa}">TOURISTIQUE</span>
-                </div>
-                <div class="col-md-6">
-                    <small class="text-muted">Les informations du demandeur seront pré-remplies. 
-                    Seul le nouveau passeport est requis.</small>
-                </div>
-            </div>
-            <hr>
-            <small class="text-muted">
-                <i class="bi bi-lightbulb"></i> Cette demande de transfert utilisera les données de la demande d'origine 
-                et créera un nouveau visa avec le nouveau passeport.
-            </small>
-        </div>
+
     </div>
+
+
 
     <!-- Fallback si pas de typeDemande (pour Sprint 1) -->
+
     <div th:if="${demandeForm == null || demandeForm.typeDemande == null}">
+
         <h1 class="mb-4" th:text="${pageTitle != null ? pageTitle : 'DEMANDE DE VISA TRANSFORMABLE'}">
+
             DEMANDE DE VISA TRANSFORMABLE
+
         </h1>
+
     </div>
+
+
 
     <!-- Message d'erreur global (BusinessException) -->
+
     <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+
         <strong>Erreur :</strong> <span th:text="${errorMessage}"></span>
+
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+
     </div>
+
+
 
     <!-- Section INFO HÉRITÉES (lecture seule) si avec antécédent -->
+
     <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true}"
+
          class="section-header bg-warning mb-4">
+
         <h2>Informations héritées du dossier existant</h2>
+
         <p class="text-muted">Ces informations ne peuvent pas être modifiées.</p>
+
     </div>
+
+
 
     <!-- Bloc ÉTAT CIVIL (READ-ONLY) -->
+
     <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true}"
+
          class="mb-4 p-3 bg-light rounded">
+
         <h3>État Civil (lecture seule)</h3>
+
         <div class="row">
+
             <div class="col-md-6">
+
                 <p><strong>Nom :</strong> <span th:text="${demandeForm.demandeurDTO?.nom}"></span></p>
+
             </div>
+
             <div class="col-md-6">
+
                 <p><strong>Prénom :</strong> <span th:text="${demandeForm.demandeurDTO?.prenom}"></span></p>
+
             </div>
+
         </div>
+
         <div class="row">
+
             <div class="col-md-6">
+
                 <p><strong>Date de naissance :</strong>
+
                    <span th:text="${#temporals.format(demandeForm.demandeurDTO?.dateNaissance, 'dd/MM/yyyy')}"></span>
+
                 </p>
+
             </div>
+
             <div class="col-md-6">
+
                 <p><strong>Nationalité :</strong>
+
                    <span th:text="${demandeForm.demandeurDTO?.idNationalite}"></span>
+
                 </p>
+
             </div>
+
         </div>
+
     </div>
+
+
 
     <!-- Bloc ANCIEN PASSEPORT (READ-ONLY) -->
+
     <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true}"
+
          class="mb-4 p-3 bg-light rounded">
+
         <h3>Passeport existant (lecture seule)</h3>
+
         <div class="row">
+
             <div class="col-md-6">
+
                 <p><strong>Numéro :</strong> <span th:text="${demandeForm.passeportDTO?.numero}"></span></p>
+
             </div>
+
             <div class="col-md-6">
+
                 <p><strong>Expiration :</strong>
+
                    <span th:text="${#temporals.format(demandeForm.passeportDTO?.dateExpiration, 'dd/MM/yyyy')}"></span>
+
                 </p>
+
             </div>
+
         </div>
+
     </div>
 
+
+
     <!-- Bloc ANCIEN VISA (READ-ONLY) si TRANSFERT -->
+
     <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true && demandeForm.typeDemande == 'TRANSFERT'}"
+
          class="mb-4 p-3 bg-light rounded">
+
         <h3>Visa existant (lecture seule)</h3>
+
         <div class="row">
+
             <div class="col-md-6">
+
                 <p><strong>Référence :</strong> <span th:text="${demandeForm.visaDTO?.referenceVisa}"></span></p>
+
             </div>
+
             <div class="col-md-6">
+
                 <p><strong>Date début :</strong>
+
                    <span th:text="${#temporals.format(demandeForm.visaDTO?.dateDebut, 'dd/MM/yyyy')}"></span>
+
                 </p>
+
             </div>
+
         </div>
+
     </div>
+
+
+
 
 
     <form th:action="${formAction != null ? formAction : '/demandes/nouvelle'}" th:object="${demandeForm}" method="post" novalidate>
 
+
+
         <!-- Blocs du formulaire — affichés si NOUVELLE ou (DUPLICATA/TRANSFERT sans antécédent) -->
+
         <div th:if="${demandeForm == null || demandeForm.avecAntecedent != true}">
 
+
+
             <!-- ═══════════════════════════════════════════ -->
+
             <!-- BLOC 🟦 ÉTAT CIVIL (Dev1)                   -->
+
             <!-- ═══════════════════════════════════════════ -->
+
         <div class="section-header">
+
             <h2>État Civil</h2>
+
         </div>
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="nom" class="form-label">Nom <span class="badge-obligatoire">*</span></label>
+
                 <input type="text" class="form-control" id="nom" th:field="*{demandeurDTO.nom}" required>
+
                 <div th:errors="*{demandeurDTO.nom}" class="alert-error text-danger"></div>
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="prenom" class="form-label">Prénom</label>
+
                 <input type="text" class="form-control" id="prenom" th:field="*{demandeurDTO.prenom}">
+
             </div>
+
         </div>
 
+
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="nomJeuneFille" class="form-label">Nom jeune fille</label>
+
                 <input type="text" class="form-control" id="nomJeuneFille" th:field="*{demandeurDTO.nomJeuneFille}">
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="dateNaissance" class="form-label">Date de naissance <span class="badge-obligatoire">*</span></label>
+
                 <input type="date" class="form-control" id="dateNaissance" name="demandeurDTO.dateNaissance"
+
                        th:value="${demandeForm != null && demandeForm.demandeurDTO != null && demandeForm.demandeurDTO.dateNaissance != null ? #temporals.format(demandeForm.demandeurDTO.dateNaissance, 'yyyy-MM-dd') : ''}"
+
                        required>
+
                 <div th:errors="*{demandeurDTO.dateNaissance}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
 
+
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="lieuNaissance" class="form-label">Lieu de naissance</label>
+
                 <input type="text" class="form-control" id="lieuNaissance" th:field="*{demandeurDTO.lieuNaissance}">
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="situationFamiliale" class="form-label">Situation familiale <span class="badge-obligatoire">*</span></label>
+
                 <select class="form-select" id="situationFamiliale" th:field="*{demandeurDTO.idSituationFamiliale}" required>
+
                     <option value="">-- Sélectionner --</option>
+
                     <option th:each="sf : ${situationsFamiliales}" th:value="${sf.id}" th:text="${sf.libelle}"></option>
+
                 </select>
+
                 <div th:errors="*{demandeurDTO.idSituationFamiliale}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
 
+
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="nationalite" class="form-label">Nationalité <span class="badge-obligatoire">*</span></label>
+
                 <select class="form-select" id="nationalite" th:field="*{demandeurDTO.idNationalite}" required>
+
                     <option value="">-- Sélectionner --</option>
+
                     <option th:each="nat : ${nationalites}" th:value="${nat.id}" th:text="${nat.libelle}"></option>
+
                 </select>
+
                 <div th:errors="*{demandeurDTO.idNationalite}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
+
+
 
         <div class="mb-3">
+
             <label for="adresseMadagascar" class="form-label">Adresse Madagascar <span class="badge-obligatoire">*</span></label>
+
             <textarea class="form-control" id="adresseMadagascar" th:field="*{demandeurDTO.adresseMadagascar}" rows="3" required></textarea>
+
             <div th:errors="*{demandeurDTO.adresseMadagascar}" class="alert-error text-danger"></div>
+
         </div>
 
+
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="telephone" class="form-label">Téléphone <span class="badge-obligatoire">*</span></label>
+
                 <input type="tel" class="form-control" id="telephone" th:field="*{demandeurDTO.telephone}" required>
+
                 <div th:errors="*{demandeurDTO.telephone}" class="alert-error text-danger"></div>
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="email" class="form-label">Email</label>
+
                 <input type="email" class="form-control" id="email" th:field="*{demandeurDTO.email}">
+
             </div>
+
         </div>
 
+
+
         <!-- ═══════════════════════════════════════════ -->
+
         <!-- BLOC 🟩 PASSEPORT (Dev1)                    -->
+
         <!-- ═══════════════════════════════════════════ -->
+
         <div class="section-header">
+
             <h2>Passeport</h2>
+
         </div>
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="numeroPasSeport" class="form-label">Numéro <span class="badge-obligatoire">*</span></label>
+
                 <input type="text" class="form-control" id="numeroPasSeport" th:field="*{passeportDTO.numero}" required>
+
                 <div th:errors="*{passeportDTO.numero}" class="alert-error text-danger"></div>
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="dateDelivrance" class="form-label">Date de délivrance <span class="badge-obligatoire">*</span></label>
+
                 <input type="date" class="form-control" id="dateDelivrance" name="passeportDTO.dateDelivrance"
+
                        th:value="${demandeForm != null && demandeForm.passeportDTO != null && demandeForm.passeportDTO.dateDelivrance != null ? #temporals.format(demandeForm.passeportDTO.dateDelivrance, 'yyyy-MM-dd') : ''}"
+
                        required>
+
                 <div th:errors="*{passeportDTO.dateDelivrance}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
 
+
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="dateExpirationPasSeport" class="form-label">Date d'expiration <span class="badge-obligatoire">*</span></label>
+
                 <input type="date" class="form-control" id="dateExpirationPasSeport" name="passeportDTO.dateExpiration"
+
                        th:value="${demandeForm != null && demandeForm.passeportDTO != null && demandeForm.passeportDTO.dateExpiration != null ? #temporals.format(demandeForm.passeportDTO.dateExpiration, 'yyyy-MM-dd') : ''}"
+
                        required>
+
                 <div th:errors="*{passeportDTO.dateExpiration}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
 
+
+
         <!-- ═══════════════════════════════════════════ -->
+
         <!-- BLOC 🟨 VISA TRANSFORMABLE (Dev2)           -->
+
         <!-- ═══════════════════════════════════════════ -->
+
         <div class="section-header">
+
             <h2>Visa Transformable</h2>
+
         </div>
+
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="referenceVisa" class="form-label">Référence Visa <span class="badge-obligatoire">*</span></label>
+
                 <input type="text" class="form-control" id="referenceVisa" th:field="*{visaDTO.referenceVisa}" required>
+
                 <div th:errors="*{visaDTO.referenceVisa}" class="alert-error text-danger"></div>
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="dateEntreeVisa" class="form-label">Date d'entrée <span class="badge-obligatoire">*</span></label>
+
                 <input type="date" class="form-control" id="dateEntreeVisa" name="visaDTO.dateEntree"
+
                        th:value="${demandeForm != null && demandeForm.visaDTO != null && demandeForm.visaDTO.dateEntree != null ? #temporals.format(demandeForm.visaDTO.dateEntree, 'yyyy-MM-dd') : ''}"
+
                        required>
+
                 <div th:errors="*{visaDTO.dateEntree}" class="alert-error text-danger"></div>
+
             </div>
+
         </div>
+
+
 
         <div class="row">
+
             <div class="col-md-6 mb-3">
+
                 <label for="lieuEntree" class="form-label">Lieu d'entrée <span class="badge-obligatoire">*</span></label>
+
                 <input type="text" class="form-control" id="lieuEntree" th:field="*{visaDTO.lieuEntree}" required>
+
                 <div th:errors="*{visaDTO.lieuEntree}" class="alert-error text-danger"></div>
+
             </div>
+
             <div class="col-md-6 mb-3">
+
                 <label for="dateExpirationVisa" class="form-label">Date d'expiration visa <span class="badge-obligatoire">*</span></label>
+
                 <input type="date" class="form-control" id="dateExpirationVisa" name="visaDTO.dateExpiration"
+
                        th:value="${demandeForm != null && demandeForm.visaDTO != null && demandeForm.visaDTO.dateExpiration != null ? #temporals.format(demandeForm.visaDTO.dateExpiration, 'yyyy-MM-dd') : ''}"
+
                        required>
+
                 <div th:errors="*{visaDTO.dateExpiration}" class="alert-error text-danger"></div>
+
             </div>
-        </div>
 
         </div>
+
+
+
+        </div>
+
+
 
         <!-- Bloc NOUVEAU PASSEPORT (visible si TRANSFERT) -->
+
         <div th:if="${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT'}">
+
             <div class="section-header">
+
                 <h2>Nouveau Passeport <span class="badge-obligatoire">*</span></h2>
+
                 <p class="text-muted">Remplissez les informations du nouveau passeport.</p>
+
             </div>
 
+
+
             <div class="row">
+
                 <div class="col-md-6 mb-3">
+
                     <label for="numeroNouveauPasseport" class="form-label">
+
                         Numéro <span class="badge-obligatoire">*</span>
+
                     </label>
+
                     <input type="text" class="form-control"
+
                            id="numeroNouveauPasseport"
+
                            th:field="*{passeportNouveauDTO.numero}"
+
                            th:required="${demandeForm.typeDemande == 'TRANSFERT'}"
+
                            placeholder="Doit être différent du passeport existant">
+
                     <small class="form-text text-muted">
+
                         Ce numéro doit être différent du passeport existant.
+
                     </small>
+
                     <div th:errors="*{passeportNouveauDTO.numero}"
+
                          class="alert-error text-danger"></div>
+
                 </div>
 
+
+
                 <div class="col-md-6 mb-3">
+
                     <label for="dateDelivranceNouveauPasseport" class="form-label">
+
                         Date de délivrance <span class="badge-obligatoire">*</span>
+
                     </label>
+
                     <input type="date" class="form-control"
+
                            id="dateDelivranceNouveauPasseport"
+
                            name="passeportNouveauDTO.dateDelivrance"
+
                            th:value="${demandeForm != null && demandeForm.passeportNouveauDTO != null && demandeForm.passeportNouveauDTO.dateDelivrance != null ? #temporals.format(demandeForm.passeportNouveauDTO.dateDelivrance, 'yyyy-MM-dd') : ''}"
+
                            th:required="${demandeForm.typeDemande == 'TRANSFERT'}">
+
                     <div th:errors="*{passeportNouveauDTO.dateDelivrance}"
+
                          class="alert-error text-danger"></div>
+
                 </div>
+
             </div>
+
+
 
             <div class="row">
+
                 <div class="col-md-6 mb-3">
+
                     <label for="dateExpirationNouveauPasseport" class="form-label">
+
                         Date d'expiration <span class="badge-obligatoire">*</span>
+
                     </label>
+
                     <input type="date" class="form-control"
+
                            id="dateExpirationNouveauPasseport"
+
                            name="passeportNouveauDTO.dateExpiration"
+
                            th:value="${demandeForm != null && demandeForm.passeportNouveauDTO != null && demandeForm.passeportNouveauDTO.dateExpiration != null ? #temporals.format(demandeForm.passeportNouveauDTO.dateExpiration, 'yyyy-MM-dd') : ''}"
+
                            th:required="${demandeForm.typeDemande == 'TRANSFERT'}">
+
                     <div th:errors="*{passeportNouveauDTO.dateExpiration}"
+
                          class="alert-error text-danger"></div>
+
                 </div>
+
             </div>
+
         </div>
 
+
+
         <!-- ═══════════════════════════════════════════ -->
+
         <!-- BLOC 🟥 DEMANDE (Dev2)                      -->
-        <!-- ═══════════════════════════════════════════ -->
-        <div class="section-header">
-            <h2>Demande</h2>
-        </div>
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="typeVisa" class="form-label">Type de visa <span class="badge-obligatoire">*</span></label>
-                <select class="form-select" id="typeVisa" th:field="*{idTypeVisa}" required>
-                    <option value="">-- Sélectionner --</option>
-                    <option th:each="tv : ${typesVisa}" th:value="${tv.id}" th:text="${tv.libelle}"></option>
-                </select>
-                <div th:errors="*{idTypeVisa}" class="alert-error text-danger"></div>
-            </div>
-        </div>
 
         <!-- ═══════════════════════════════════════════ -->
-        <!-- BLOC 🟪 PIÈCES À FOURNIR (Dev2)             -->
-        <!-- ═══════════════════════════════════════════ -->
+
         <div class="section-header">
-            <h2>Pièces à fournir</h2>
+
+            <h2>Demande</h2>
+
         </div>
+
+        <div class="row">
+
+            <div class="col-md-6 mb-3">
+
+                <label for="typeVisa" class="form-label">Type de visa <span class="badge-obligatoire">*</span></label>
+
+                <select class="form-select" id="typeVisa" th:field="*{idTypeVisa}" required>
+
+                    <option value="">-- Sélectionner --</option>
+
+                    <option th:each="tv : ${typesVisa}" th:value="${tv.id}" th:text="${tv.libelle}"></option>
+
+                </select>
+
+                <div th:errors="*{idTypeVisa}" class="alert-error text-danger"></div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ═══════════════════════════════════════════ -->
+
+        <!-- BLOC 🟪 PIÈCES À FOURNIR (Dev2)             -->
+
+        <!-- ═══════════════════════════════════════════ -->
+
+        <div class="section-header">
+
+            <h2>Pièces à fournir</h2>
+
+        </div>
+
+
 
         <!-- Pièces communes : affichées statiquement -->
+
         <h4>Pièces communes</h4>
+
         <div id="piecesCommunes">
+
             <div th:each="piece : ${piecesCommunes}" class="form-check">
+
                 <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'piece_' + ${piece.id}"
+
                        th:checked="${demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)}">
+
                 <label class="form-check-label" th:for="'piece_' + ${piece.id}">
+
                     <span th:text="${piece.nom}"></span>
+
                     <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+
                 </label>
+
             </div>
+
         </div>
+
+
 
         <!-- Pièces spécifiques : affichées côté serveur (sans JavaScript) -->
+
         <h4 style="margin-top: 20px;">Pièces spécifiques</h4>
+
         <div id="pieces-specifiques">
+
             <div th:if="${piecesSpecifiques == null or piecesSpecifiques.isEmpty()}" class="text-muted">
+
                 Sélectionnez un type de visa puis cliquez sur « Mettre à jour les pièces spécifiques ».
+
             </div>
+
             <div th:if="${piecesSpecifiques != null and !piecesSpecifiques.isEmpty()}">
+
                 <div th:each="piece : ${piecesSpecifiques}" class="form-check">
+
                     <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'spec_piece_' + ${piece.id}"
+
                            th:checked="${demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)}">
+
                     <label class="form-check-label" th:for="'spec_piece_' + ${piece.id}">
+
                         <span th:text="${piece.nom}"></span>
+
                         <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
+
                     </label>
+
                 </div>
+
             </div>
+
         </div>
+
+
 
         <div class="mt-3">
+
             <button type="submit" class="btn btn-outline-secondary" name="refreshPieces" value="true">
+
                 Mettre à jour les pièces spécifiques
+
             </button>
+
         </div>
 
+
+
         <!-- ═══════════════════════════════════════════ -->
+
         <!-- BOUTONS                                     -->
+
         <!-- ═══════════════════════════════════════════ -->
+
         <div class="form-actions mt-4">
+
             <button type="submit" class="btn btn-primary" th:text="${submitLabel != null ? submitLabel : 'ENREGISTRER'}">ENREGISTRER</button>
+
             <a th:href="${cancelUrl != null ? cancelUrl : '/'}" class="btn btn-secondary">ANNULER</a>
+
         </div>
+
+
 
     </form>
+
 </div>
 
+
+
 <script>
+
 // Validation pour TRANSFERT : numéro nouveau passeport ≠ ancien
+
 document.addEventListener('DOMContentLoaded', function() {
+
     const form = document.querySelector('form');
+
     if (!form) return;
 
+
+
     const typeDemande = form.querySelector('[name*="typeDemande"]')?.value || '';
+
     if (typeDemande !== 'TRANSFERT') return;
 
+
+
     const numeroAncien = form.querySelector('[id="numeroPasSeport"]')?.value || '';
+
     const form_submit = form.querySelector('button[type="submit"]');
 
+
+
     form.addEventListener('submit', function(e) {
+
         const numeroNouveau = form.querySelector('[name="passeportNouveauDTO.numero"]')?.value || '';
 
+
+
         if (numeroNouveau === numeroAncien && numeroNouveau !== '') {
+
             e.preventDefault();
+
             alert('Le numéro du nouveau passeport doit être différent de l\'ancien.');
+
             return false;
+
         }
+
     });
+
 });
+
 </script>
 
+
+
 </body>
+
 </html>
+
