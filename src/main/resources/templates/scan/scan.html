@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${pageTitle}">Scan des pièces justificatives</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 24px;
+        }
+        .header-info {
+            text-align: right;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .status-cree {
+            background-color: #28a745;
+        }
+        .status-termine {
+            background-color: #dc3545;
+        }
+        .info-block {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        .info-block h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .info-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .info-field {
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+        .info-field strong {
+            display: block;
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+        .documents-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .documents-table thead {
+            background-color: #667eea;
+            color: white;
+        }
+        .documents-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .documents-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .documents-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+        .status-fourni {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-non-fourni {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+        }
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #5568d3;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #138496;
+        }
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .upload-section {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 2px dashed #667eea;
+        }
+        .upload-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group select,
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .summary {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .summary-text {
+            font-size: 16px;
+            color: #333;
+        }
+        .summary-count {
+            font-weight: bold;
+            color: #667eea;
+        }
+        .actions-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 3px;
+            margin-bottom: 15px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .locked-message {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 3px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ffc107;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>Scan des pièces justificatives</h1>
+        </div>
+        <div class="header-info">
+            <div th:text="'Demande: ' + ${scanPage.reference}"></div>
+            <span th:class="'status-badge ' + (${scanPage.dossierVerrouille} ? 'status-termine' : 'status-cree')"
+                  th:text="${scanPage.statut}"></span>
+        </div>
+    </div>
+
+    <!-- Messages flash -->
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+    <!-- Message dossier verrouillé -->
+    <div th:if="${scanPage.dossierVerrouille}" class="locked-message">
+        <strong>⚠️ Dossier verrouillé</strong> - Le scan est terminé, aucune modification n'est possible.
+    </div>
+
+    <!-- Informations de la demande -->
+    <div class="info-block">
+        <h3>État civil</h3>
+        <div class="info-row" th:if="${scanPage.demandeur}">
+            <div class="info-field">
+                <strong>Nom</strong>
+                <span th:text="${scanPage.demandeur.nom}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Prénom</strong>
+                <span th:text="${scanPage.demandeur.prenom}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date de naissance</strong>
+                <span th:text="${scanPage.demandeur.dateNaissance}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations passeport -->
+    <div class="info-block" th:if="${scanPage.passeport}">
+        <h3>Passeport</h3>
+        <div class="info-row">
+            <div class="info-field">
+                <strong>Numéro</strong>
+                <span th:text="${scanPage.passeport.numero}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date de délivrance</strong>
+                <span th:text="${scanPage.passeport.dateDelivrance}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date d'expiration</strong>
+                <span th:text="${scanPage.passeport.dateExpiration}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations visa -->
+    <div class="info-block" th:if="${scanPage.visa}">
+        <h3>Visa Transformable</h3>
+        <div class="info-row">
+            <div class="info-field">
+                <strong>Référence visa</strong>
+                <span th:text="${scanPage.visa.referenceVisa}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date d'entrée</strong>
+                <span th:text="${scanPage.visa.dateDebut}"></span>
+            </div>
+            <div class="info-field">
+                <strong>Date d'expiration</strong>
+                <span th:text="${scanPage.visa.dateFin}"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Résumé des documents -->
+    <div class="summary">
+        <div class="summary-text">
+            Documents fournis: <span class="summary-count" th:text="${scanPage.nombreDocumentsFournis}"></span> /
+            <span class="summary-count" th:text="${scanPage.nombreDocumentsAttendus}"></span>
+        </div>
+    </div>
+
+    <!-- Tableau des documents -->
+    <h3 style="margin-bottom: 15px;">Pièces justificatives</h3>
+    <table class="documents-table" th:if="${!scanPage.documents.isEmpty()}">
+        <thead>
+        <tr>
+            <th>Pièce</th>
+            <th>Fichier</th>
+            <th>Date d'upload</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="doc : ${scanPage.documents}">
+            <td th:text="${doc.pieceNom}"></td>
+            <td th:text="${doc.nomOriginal}"></td>
+            <td th:text="${doc.dateCreation}"></td>
+            <td>
+                <div class="actions">
+                    <a th:href="@{/documents/{id}/file(id=${doc.id})}"
+                       class="btn btn-info" target="_blank">Voir</a>
+                    <button th:if="!${scanPage.dossierVerrouille}"
+                            onclick="deleteDocument([[${doc.id}]])"
+                            class="btn btn-danger">Supprimer</button>
+                    <button th:if="${scanPage.dossierVerrouille}"
+                            class="btn btn-danger" disabled>Supprimer</button>
+                </div>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:if="${scanPage.documents.isEmpty()}" style="background: white; padding: 20px; border-radius: 5px; text-align: center; color: #999;">
+        Aucun document uploadé pour le moment
+    </div>
+
+    <!-- Section d'upload -->
+    <div class="upload-section" th:if="!${scanPage.dossierVerrouille}">
+        <h3>📤 Uploader une pièce justificative</h3>
+        <form th:action="@{/documents}" method="POST" enctype="multipart/form-data">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="piece">Pièce justificative *</label>
+                    <select id="piece" name="pieceId" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option th:each="piece : ${typePieces}"
+                                th:value="${piece.id}"
+                                th:text="${piece.nom}"></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fichier">Fichier (PDF, JPG, PNG) *</label>
+                    <input type="file" id="fichier" name="fichier" required accept=".pdf,.jpg,.jpeg,.png">
+                </div>
+            </div>
+            <input type="hidden" name="demandeId" th:value="${scanPage.demandeId}">
+            <button type="submit" class="btn btn-primary">Uploader</button>
+        </form>
+    </div>
+
+    <!-- Actions footer -->
+    <div class="actions-footer">
+        <a href="/demandes" class="btn btn-primary">Retour à la liste</a>
+        <button class="btn btn-primary" th:if="!${scanPage.dossierVerrouille}" onclick="alert('Fonction "Terminer le scan" assignée à Dev 1 - ETU003324')">
+            Terminer le scan
+        </button>
+        <button class="btn btn-primary" th:if="!${scanPage.dossierVerrouille}" onclick="alert('Fonction "Exporter PDF" assignée à Dev 1 - ETU003324')">
+            Exporter PDF
+        </button>
+    </div>
+</div>
+
+<script>
+    function deleteDocument(docId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+            fetch('/documents/' + docId, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    location.reload();
+                } else if (response.status === 403) {
+                    alert('Impossible: Demande verrouillée');
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            })
+            .catch(error => console.error('Erreur:', error));
+        }
+    }
+</script>
+</body>
+</html>

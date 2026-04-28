@@ -1,0 +1,167 @@
+TL    : [NOM TL] / [Prénom TL]
+Dev 1 : [ETU_DEV1] / [Prénom Dev1]   ← Visa + CarteResident + ApprobationAuto + TRANSFERT
+Dev 2 : [ETU_DEV2] / [Prénom Dev2]   ← DUPLICATA + Recherche + Pages choix
+
+Note générale :
+    Script SQL 240426.sql déjà fourni. Le TL vérifie son application avant tout dev.
+    Nouvelles tables : `visa`, `carte_resident`. Nouvelle colonne : `demande.id_demande_origine`.
+    Nouveau type_demande : TRANSFERT. L'approbation sans antériorité est AUTOMATIQUE dans le code.
+    id_demande_origine pointe TOUJOURS vers une demande NOUVELLE APPROUVEE.
+
+Règles métier (référence rapide) :
+    RG-01 : toute demande NOUVELLE approuvée → création auto visa + carte_resident
+    RG-02 : DUPLICATA = perte carte résident (visa intact)
+    RG-03 : TRANSFERT = perte/expiration passeport (carte_resident intacte, ancien visa désactivé)
+    RG-05 : sans antériorité → NOUVELLE demande créée puis approuvée automatiquement, puis DUPLICATA/TRANSFERT
+    RG-06 : DUPLICATA crée une carte_resident uniquement
+    RG-07 : TRANSFERT crée un visa uniquement
+    RG-08 : id_demande_origine → toujours NOUVELLE + APPROUVEE
+
+=======================================================================
+BackOffice
+    Module : Entités Visa + CarteResident
+=======================================================================
+
+    Note : Dev1 livre ces deux entités EN PREMIER car Dev2 en dépend.
+
+    Tache : Visa
+        - Base    : table `visa` déjà créée (id, reference_visa, date_debut, date_fin, id_passeport, id_demande)
+        - Métier  : Créer Visa.java (entity), VisaDTO.java, VisaRepository.java, VisaService.java, VisaMapper.java
+                    VisaRepository : findByDemandeId(), findByPasseportId(), findByDemandeIdAndDateFinAfter()
+                    VisaService.creer(Demande, Passeport) : génère referenceVisa, dateDebut=today, lie et sauvegarde
+                    VisaService.desactiver(idDemande) : met dateFin=today sur le visa actif (utilisé en TRANSFERT)
+        - Tests   : creer() → referenceVisa non vide, dateDebut=today ✅ | desactiver() → dateFin=today ✅
+        - Responsable : Dev 1
+
+    Tache : CarteResident
+        - Base    : table `carte_resident` déjà créée (id, numero_carte UNIQUE, date_debut, date_fin, id_passeport, id_demande)
+        - Métier  : Créer CarteResident.java (entity), CarteResidentDTO.java, CarteResidentRepository.java,
+                    CarteResidentService.java, CarteResidentMapper.java
+                    CarteResidentRepository : findByDemandeId(), findByNumeroCarte()
+                    CarteResidentService.creer(Demande, Passeport) : génère numeroCarte, dateDebut=today, sauvegarde
+        - Tests   : creer() → numeroCarte non vide, dateDebut=today ✅ | creer() sans passeport → BusinessException ✅
+        - Responsable : Dev 1
+
+=======================================================================
+BackOffice
+    Module : Approbation NOUVELLE (DemandeService — MODIF Sprint 1)
+=======================================================================
+
+    Tache : approuverDemandeNouvelle()
+        - Base    : mise à jour statut dans `demande`, insert dans `historique_statut`, `visa`, `carte_resident`
+        - Métier  : ajouter dans DemandeService.java :
+                    approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique)
+                        1. Charger demande → erreur si absente
+                        2. Vérifier statut=CREE et type=NOUVELLE → BusinessException sinon
+                        3. Passer statut → APPROUVEE, sauvegarder
+                        4. Créer historique ("Approbation automatique" si automatique=true)
+                        5. visaService.creer(demande, passeport)           ← RG-01
+                        6. carteResidentService.creer(demande, passeport)  ← RG-01
+        - Affichage : page `demande/approbation.html` — récapitulatif + bouton Approuver + champ commentaire (F)
+        - Tests   : approbation OK → statut=APPROUVEE, visa créé, carte créée, historique créé ✅
+                    statut déjà APPROUVEE ou type≠NOUVELLE → BusinessException ✅
+        - Responsable : Dev 1
+
+=======================================================================
+BackOffice
+    Module : DUPLICATA (carte résident perdue)
+=======================================================================
+
+    Tache : Page de choix + Recherche dossier approuvé
+        - Affichage : `duplicata/choix-type.html` — 2 boutons : "Dossier existant" / "Pas de dossier"
+                      `duplicata/recherche-dossier.html` — formulaire (nom OU n° passeport OU ref visa),
+                      tableau résultats avec lien "Créer le duplicata →" par ligne
+        - Métier  : rechercherDemandesApprouvees(DemandeRechercheDTO) : List<DemandeResumeeDTO>
+                        au moins un critère requis → BusinessException sinon
+                        filtre : statut=APPROUVEE ET type=NOUVELLE uniquement
+        - Tests   : sans critère → BusinessException ✅ | par nom → liste ✅ | résultats type≠NOUVELLE exclus ✅
+        - Responsable : Dev 2
+
+    Tache : CAS 1.1 — DUPLICATA avec antériorité
+        - Affichage : `duplicata/formulaire-avec-antecedent.html`
+                      Bloc lecture seule : infos héritées (demandeur, passeport, visa, statut=APPROUVEE)
+                      Bloc pièces : communes (statique) + spécifiques (AJAX /demandes/pieces?idTypeVisa=X)
+                      Page confirmation : `duplicata/confirmation-duplicata.html`
+        - Métier  : creerDuplicata(DuplicataCreateDTO) dans DemandeService
+                        Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
+                        Vérifier absence doublon DUPLICATA actif (statut CREE) sur cette origine
+                        Créer demande DUPLICATA (hérite demandeur, visaTransformable, typeVisa de l'origine)
+                        Créer historique + lier pièces (réutiliser lierPiecesADemande() Sprint 1)
+                        carteResidentService.creer() ← RG-06 : nouvelle carte uniquement, visa intact
+        - Base    : insert `demande` (DUPLICATA), `historique_statut`, `demande_piece`, `carte_resident`
+        - Tests   : creerDuplicata() OK → carte créée, visa NON créé, historique créé ✅
+                    origine CREE ou REFUSEE ou type≠NOUVELLE → BusinessException ✅ | doublon → BusinessException ✅
+        - Responsable : Dev 2
+
+    Tache : CAS 1.2 — DUPLICATA sans antériorité
+        - Affichage : `duplicata/formulaire-sans-antecedent.html`
+                      Bannière "Étape 1/2 — dossier approuvé automatiquement"
+                      Formulaire complet identique Sprint 1 (réutiliser tous les blocs)
+                      Action → POST /duplicata/cas-sans-antecedent/soumettre
+        - Métier  : POST handler dans DemandeController :
+                        1. creerDemande(dto)                           → NOUVELLE statut=CREE
+                        2. approuverDemandeNouvelle(id, null, true)    → APPROUVEE auto + visa + carte (RG-01)
+                        3. creerDuplicata(idDemandeOrigine=id)         → DUPLICATA + nouvelle carte (RG-06)
+                        4. Rediriger vers /duplicata/{id}/confirmation
+        - Base    : insert `demande`×2, `visa`×1, `carte_resident`×2, `historique_statut`×2, `demande_piece`×2
+        - Tests   : flux complet → 2 demandes, 1 visa, 2 cartes, NOUVELLE=APPROUVEE, DUPLICATA=CREE ✅
+        - Responsable : Dev 2
+
+=======================================================================
+BackOffice
+    Module : TRANSFERT (passeport perdu/expiré)
+=======================================================================
+
+    Tache : CAS 2.1 — TRANSFERT avec antériorité
+        - Affichage : réutiliser `duplicata/recherche-dossier.html` (lien adapté "Créer le transfert →")
+                      `transfert/formulaire-avec-antecedent.html`
+                      Bloc lecture seule : infos héritées + ancien passeport
+                      Bloc NOUVEAU PASSEPORT (O) : numéro (U), date délivrance, date expiration
+                      Bloc pièces communes + spécifiques AJAX
+                      Page confirmation : `transfert/confirmation-transfert.html`
+        - Métier  : creerTransfert(TransfertCreateDTO) dans DemandeService
+                        Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
+                        Vérifier absence doublon TRANSFERT actif sur cette origine
+                        Créer nouveau Passeport via passeportService.creer() (numéro ≠ ancien)
+                        Créer demande TRANSFERT (hérite demandeur, visaTransformable, typeVisa)
+                        visaService.desactiver(origineId)              ← RG-07 : ancien visa inactif
+                        visaService.creer(transfert, nouveauPasseport) ← RG-07 : nouveau visa
+                        carte_resident inchangée (pas de création)
+        - Base    : insert `passeport` (nouveau), `demande` (TRANSFERT), `historique_statut`, `demande_piece`, `visa` (nouveau) | update `visa` (dateFin=today sur l'ancien)
+        - Tests   : creerTransfert() OK → nouveau visa créé, ancien désactivé, carte NON créée ✅
+                    origine invalide ou doublon → BusinessException ✅ | même numéro passeport → BusinessException ✅
+        - Responsable : Dev 1
+
+    Tache : CAS 2.2 — TRANSFERT sans antériorité
+        - Affichage : `transfert/formulaire-sans-antecedent.html`
+                      Blocs Sprint 1 (état civil, ANCIEN passeport, visa transformable, type visa, pièces)
+                      + Bloc NOUVEAU PASSEPORT (O) : numéro (U), date délivrance, date expiration
+                      Action → POST /transfert/cas-sans-antecedent/soumettre
+        - Métier  : POST handler dans DemandeController :
+                        1. creerDemande(dto)                           → NOUVELLE statut=CREE
+                        2. approuverDemandeNouvelle(id, null, true)    → APPROUVEE auto + visa + carte (RG-01)
+                        3. creerTransfert(idDemandeOrigine=id,
+                                          nouveauPasseport=dto.nouveauPasseport) → ancien visa désactivé + nouveau visa (RG-07)
+                        4. Rediriger vers /transfert/{id}/confirmation
+        - Base    : insert `demande`×2, `passeport`×2, `visa`×2 (1 désactivé + 1 nouveau), `carte_resident`×1, `historique_statut`×2, `demande_piece`×2
+        - Tests   : flux complet → 2 demandes, 2 passeports, ancien visa désactivé, nouveau visa créé, 1 carte inchangée ✅
+        - Responsable : Dev 1
+
+=======================================================================
+Routes Sprint 2
+=======================================================================
+
+    /duplicata/choix-type                          GET        Dev 2
+    /duplicata/cas-avec-antecedent/recherche       GET + POST Dev 2
+    /duplicata/cas-avec-antecedent/formulaire      GET        Dev 2
+    /duplicata/cas-avec-antecedent/soumettre       POST       Dev 2
+    /duplicata/cas-sans-antecedent/formulaire      GET        Dev 2
+    /duplicata/cas-sans-antecedent/soumettre       POST       Dev 2
+    /duplicata/{id}/confirmation                   GET        Dev 2
+
+    /transfert/cas-avec-antecedent/recherche       GET + POST Dev 1  (réutilise service Dev2)
+    /transfert/cas-avec-antecedent/formulaire      GET        Dev 1
+    /transfert/cas-avec-antecedent/soumettre       POST       Dev 1
+    /transfert/cas-sans-antecedent/formulaire      GET        Dev 1
+    /transfert/cas-sans-antecedent/soumettre       POST       Dev 1
+    /transfert/{id}/confirmation                   GET        Dev 1
