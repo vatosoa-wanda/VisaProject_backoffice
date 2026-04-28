@@ -1,219 +1,151 @@
 <!DOCTYPE html>
-<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${pageTitle}">Recherche de demande d'origine</title>
+    <title>Recherche de demande d'origine - Transfert</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body {
+        .section-header {
             background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            margin-bottom: 15px;
         }
-        .container-fluid {
-            padding: 20px;
-        }
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .badge-obligatoire {
+            background-color: #dc3545;
             color: white;
-            border-radius: 15px 15px 0 0 !important;
-            border: none;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.8em;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 25px;
-            padding: 10px 25px;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #6a4c93 100%);
-            border: none;
-        }
-        .btn-back {
-            background-color: #6c757d;
-            border-color: #6c757d;
-            color: white;
-            border-radius: 25px;
-            padding: 10px 25px;
-        }
-        .btn-back:hover {
-            background-color: #5a6268;
-            border-color: #545b62;
+        .btn-transfert {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
             color: white;
         }
-        .form-control {
-            border-radius: 10px;
-            border: 1px solid #ddd;
-            padding: 12px;
-        }
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
-        .table {
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .table th {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-        }
-        .alert {
-            border-radius: 10px;
-            border: none;
-        }
-        .result-card {
-            transition: transform 0.2s;
-        }
-        .result-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        .btn-transfert:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-12">
-                <!-- Header -->
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>
-                        <i class="bi bi-arrow-left-right"></i>
-                        <span th:text="${pageTitle}">Recherche de demande d'origine pour transfert</span>
-                    </h2>
-                    <a href="/demandes" class="btn btn-back">
-                        <i class="bi bi-arrow-left"></i> Retour aux demandes
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">
+                <i class="bi bi-search"></i> Recherche de demande d'origine
+            </h1>
+            <p class="text-muted">Recherchez une demande approuvée pour effectuer un transfert avec données antérieures.</p>
+        </div>
+    </div>
+
+    <!-- Formulaire de recherche -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-funnel"></i> Critères de recherche
+            </h5>
+        </div>
+        <div class="card-body">
+            <form th:action="@{/transfert/recherche}" method="post">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="nom" class="form-label">Nom du demandeur</label>
+                        <input type="text" class="form-control" id="nom" name="nom" 
+                               th:value="${criteresRecherche != null ? criteresRecherche.nom : ''}"
+                               placeholder="Ex: RAKOTO">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="numeroPasSeport" class="form-label">Numéro de passeport</label>
+                        <input type="text" class="form-control" id="numeroPasSeport" name="numeroPasSeport"
+                               th:value="${criteresRecherche != null ? criteresRecherche.numeroPasSeport : ''}"
+                               placeholder="Ex: 12345678">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="referenceVisa" class="form-label">Référence visa</label>
+                        <input type="text" class="form-control" id="referenceVisa" name="referenceVisa"
+                               th:value="${criteresRecherche != null ? criteresRecherche.referenceVisa : ''}"
+                               placeholder="Ex: VISA-2024-001">
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Rechercher
+                    </button>
+                    <a th:href="@{/transfert/recherche}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Réinitialiser
                     </a>
                 </div>
+            </form>
+        </div>
+    </div>
 
-                <!-- Messages -->
-                <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="bi bi-check-circle-fill"></i> <span th:text="${successMessage}"></span>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
-                </div>
+    <!-- Résultats de recherche -->
+    <div th:if="${resultats != null}" class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="bi bi-list-check"></i> Résultats de recherche
+                <span class="badge bg-light text-dark ms-2" th:text="${#strings.length(resultats)} + ' résultat(s)'">0 résultat(s)</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <div th:if="${resultats.isEmpty()}" class="text-center py-4">
+                <i class="bi bi-search" style="font-size: 3rem; color: #6c757d;"></i>
+                <p class="text-muted mt-3">Aucune demande trouvée correspondant à vos critères</p>
+            </div>
 
-                <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-circle-fill"></i> <span th:text="${errorMessage}"></span>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
-                </div>
-
-                <!-- Formulaire de recherche -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-search"></i> Critères de recherche
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form th:action="@{/transfert/recherche}" method="post" th:object="${criteresRecherche}">
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="nom" class="form-label">Nom du demandeur</label>
-                                    <input type="text" class="form-control" id="nom" th:field="*{nom}" 
-                                           placeholder="Ex: RAKOTO">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="numeroPasSeport" class="form-label">Numéro de passeport</label>
-                                    <input type="text" class="form-control" id="numeroPasSeport" th:field="*{numeroPasSeport}" 
-                                           placeholder="Ex: 123456">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="referenceVisa" class="form-label">Référence visa</label>
-                                    <input type="text" class="form-control" id="referenceVisa" th:field="*{referenceVisa}" 
-                                           placeholder="Ex: 123">
-                                </div>
-                            </div>
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle"></i>
-                                <strong>Information:</strong> Au moins un critère de recherche est requis. 
-                                Seules les demandes approuvées de type NOUVELLE seront affichées.
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-search"></i> Rechercher
-                                </button>
-                                <a href="/transfert/recherche" class="btn btn-secondary">
-                                    <i class="bi bi-arrow-clockwise"></i> Réinitialiser
+            <div th:if="${!resultats.isEmpty()}" class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Numéro passeport</th>
+                            <th>Référence visa</th>
+                            <th>Date demande</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="demande : ${resultats}">
+                            <td th:text="${demande.id}"></td>
+                            <td th:text="${demande.demandeurNom}"></td>
+                            <td th:text="${demande.demandeurPrenom}"></td>
+                            <td th:text="${demande.numeroPasSeport}"></td>
+                            <td th:text="${demande.referenceVisa}"></td>
+                            <td th:text="${demande.dateApproval != null ? #temporals.format(demande.dateApproval, 'dd/MM/yyyy HH:mm') : ''}"></td>
+                            <td>
+                                <a th:href="@{/transfert/formulaire(idDemandeOrigine=${demande.id})}" 
+                                   class="btn btn-transfert btn-sm">
+                                    <i class="bi bi-check-circle"></i> Sélectionner
                                 </a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Résultats de recherche -->
-                <div th:if="${resultats != null}" class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-list-check"></i> Résultats de recherche
-                            <span class="badge bg-light text-dark ms-2" th:text="${#strings.length(resultats)} + ' résultat(s)'">0 résultat(s)</span>
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div th:if="${resultats.isEmpty()}" class="text-center py-4">
-                            <i class="bi bi-search" style="font-size: 3rem; color: #6c757d;"></i>
-                            <p class="text-muted mt-3">Aucune demande trouvée correspondant à vos critères</p>
-                        </div>
-
-                        <div th:if="${!resultats.isEmpty()}" class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Demandeur</th>
-                                        <th>Passeport</th>
-                                        <th>Référence Visa</th>
-                                        <th>Date d'approbation</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr th:each="demande : ${resultats}">
-                                        <td>
-                                            <strong th:text="'#' + ${demande.id}"></strong>
-                                        </td>
-                                        <td th:text="${demande.demandeurNom} + ' ' + ${demande.demandeurPrenom}"></td>
-                                        <td th:text="${demande.numeroPasSeport}"></td>
-                                        <td th:text="${demande.referenceVisa}"></td>
-                                        <td>
-                                            <small th:text="${#temporals.format(demande.dateApproval, 'dd/MM/yyyy HH:mm')}"></small>
-                                        </td>
-                                        <td>
-                                            <a th:href="'/transfert/formulaire?idDemandeOrigine=' + ${demande.id}" 
-                                               class="btn btn-sm btn-success">
-                                                <i class="bi bi-arrow-right-circle"></i> Sélectionner
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Alternative : Transfert sans antécédent -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="bi bi-plus-circle"></i> Autre option
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="mb-3">Vous pouvez également créer une demande de transfert sans données antérieures.</p>
-                        <a href="/transfert/formulaire" class="btn btn-outline-primary">
-                            <i class="bi bi-plus-circle"></i> Transfert sans données antérieures
-                        </a>
-                    </div>
-                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Message d'erreur -->
+    <div th:if="${error != null}" class="alert alert-danger mt-3">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span th:text="${error}"></span>
+    </div>
+
+    <div class="mt-4">
+        <a th:href="@{/}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Retour à l'accueil
+        </a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

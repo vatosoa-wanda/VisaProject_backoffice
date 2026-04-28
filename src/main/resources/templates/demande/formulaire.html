@@ -1,7 +1,11 @@
 <!DOCTYPE html>
+
 <html xmlns:th="http://www.thymeleaf.org" lang="fr">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Demande de Visa Transformable</title>
@@ -808,34 +812,89 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const typeDemande = form.querySelector('[name*="typeDemande"]')?.value || '';
 
-    if (typeDemande !== 'TRANSFERT') return;
+    // Validation pour TRANSFERT : numéro nouveau passeport ≠ ancien
+    if (typeDemande === 'TRANSFERT') {
+        const numeroAncien = form.querySelector('[id="numeroPasSeport"]')?.value || '';
+        const form_submit = form.querySelector('button[type="submit"]');
 
+        form.addEventListener('submit', function(e) {
+            const numeroNouveau = form.querySelector('[name="passeportNouveauDTO.numero"]')?.value || '';
 
+            if (numeroNouveau === numeroAncien && numeroNouveau !== '') {
+                e.preventDefault();
+                alert('Le numéro du nouveau passeport doit être différent de l\'ancien.');
+                return false;
+            }
+        });
+    }
 
-    const numeroAncien = form.querySelector('[id="numeroPasSeport"]')?.value || '';
+    // Chargement automatique des pièces spécifiques lors du changement de type de visa (pour tous les types de demandes)
+    const typeVisaSelect = document.getElementById('typeVisa');
+    if (typeVisaSelect) {
+        typeVisaSelect.addEventListener('change', function() {
+            const idTypeVisa = this.value;
+            if (idTypeVisa) {
+                chargerPiecesSpecifiques(idTypeVisa);
+            } else {
+                // Réinitialiser les pièces spécifiques si aucun type de visa n'est sélectionné
+                const piecesSpecifiquesDiv = document.getElementById('pieces-specifiques');
+                if (piecesSpecifiquesDiv) {
+                    piecesSpecifiquesDiv.innerHTML = '<div class="text-muted">Sélectionnez un type de visa pour voir les pièces spécifiques.</div>';
+                }
+            }
+        });
+    }
 
-    const form_submit = form.querySelector('button[type="submit"]');
+    // Fonction pour charger les pièces spécifiques via AJAX
+    function chargerPiecesSpecifiques(idTypeVisa) {
+        const piecesSpecifiquesDiv = document.getElementById('pieces-specifiques');
+        
+        if (!piecesSpecifiquesDiv) return;
 
+        piecesSpecifiquesDiv.innerHTML = '<div class="text-muted"><i class="bi bi-spinner"></i> Chargement des pièces spécifiques...</div>';
 
+        // Utiliser l'endpoint générique pour les pièces
+        fetch(`/demandes/pieces?idTypeVisa=${idTypeVisa}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erreur lors du chargement des pièces');
+                }
+                return response.json();
+            })
+            .then(pieces => {
+                piecesSpecifiquesDiv.innerHTML = '';
+                
+                if (pieces.length === 0) {
+                    piecesSpecifiquesDiv.innerHTML = '<div class="text-muted">Aucune pièce spécifique pour ce type de visa.</div>';
+                    return;
+                }
 
-    form.addEventListener('submit', function(e) {
-
-        const numeroNouveau = form.querySelector('[name="passeportNouveauDTO.numero"]')?.value || '';
-
-
-
-        if (numeroNouveau === numeroAncien && numeroNouveau !== '') {
-
-            e.preventDefault();
-
-            alert('Le numéro du nouveau passeport doit être différent de l\'ancien.');
-
-            return false;
-
-        }
-
-    });
-
+                pieces.forEach(piece => {
+                    const pieceDiv = document.createElement('div');
+                    pieceDiv.className = 'form-check';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'form-check-input';
+                    checkbox.name = 'piecesFournies';
+                    checkbox.value = piece.id;
+                    checkbox.id = 'spec_piece_' + piece.id;
+                    
+                    const label = document.createElement('label');
+                    label.className = 'form-check-label';
+                    label.htmlFor = 'spec_piece_' + piece.id;
+                    label.innerHTML = `${piece.nom} ${piece.obligatoire ? '<span class="badge-obligatoire"> *</span>' : ''}`;
+                    
+                    pieceDiv.appendChild(checkbox);
+                    pieceDiv.appendChild(label);
+                    piecesSpecifiquesDiv.appendChild(pieceDiv);
+                });
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des pièces spécifiques:', error);
+                piecesSpecifiquesDiv.innerHTML = '<div class="text-danger">Erreur lors du chargement des pièces spécifiques. Veuillez réessayer.</div>';
+            });
+    }
 });
 
 </script>

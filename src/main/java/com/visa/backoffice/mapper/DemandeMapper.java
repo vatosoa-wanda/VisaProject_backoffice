@@ -1,12 +1,20 @@
 package com.visa.backoffice.mapper;
 
+
+
 import com.visa.backoffice.dto.DemandePieceDTO;
-import com.visa.backoffice.dto.DemandeResumeeDTO;
+
 import com.visa.backoffice.dto.DemandeResponseDTO;
+
 import com.visa.backoffice.dto.PieceDTO;
+
 import com.visa.backoffice.model.Demande;
+
 import com.visa.backoffice.model.Piece;
+
 import org.springframework.stereotype.Component;
+
+
 
 import java.util.stream.Collectors;
 
@@ -122,60 +130,6 @@ public class DemandeMapper {
 
     /**
 
-     * Convertit une Demande en DemandeResumeeDTO pour la recherche.
-
-     * @param demande   entité Demande
-
-     * @return          DemandeResumeeDTO avec informations résumées
-
-     */
-
-    public DemandeResumeeDTO toResumeeDTO(Demande demande) {
-
-        DemandeResumeeDTO dto = new DemandeResumeeDTO();
-
-        if (demande == null) {
-            return dto;
-        }
-
-        dto.setId(demande.getId());
-
-        // Gestion sécurisée du demandeur
-        if (demande.getDemandeur() != null) {
-            dto.setDemandeurNom(demande.getDemandeur().getNom() != null ? demande.getDemandeur().getNom() : "");
-            dto.setDemandeurPrenom(demande.getDemandeur().getPrenom() != null ? demande.getDemandeur().getPrenom() : "");
-        } else {
-            dto.setDemandeurNom("");
-            dto.setDemandeurPrenom("");
-        }
-
-        // Gestion sécurisée du passeport
-        if (demande.getVisaTransformable() != null && demande.getVisaTransformable().getPasseport() != null) {
-            dto.setNumeroPasSeport(demande.getVisaTransformable().getPasseport().getNumero() != null ? 
-                demande.getVisaTransformable().getPasseport().getNumero() : "");
-        } else {
-            dto.setNumeroPasSeport("");
-        }
-
-        // Gestion sécurisée de la référence visa
-        if (demande.getVisaTransformable() != null) {
-            dto.setReferenceVisa(demande.getVisaTransformable().getReferenceVisa() != null ? 
-                demande.getVisaTransformable().getReferenceVisa() : "");
-        } else {
-            dto.setReferenceVisa("");
-        }
-
-        // Gestion sécurisée de la date
-        dto.setDateApproval(demande.getDateDemande());
-
-        return dto;
-
-    }
-
-
-
-    /**
-
      * Convertit une Piece en PieceDTO.
 
      * @param piece     entité Piece
@@ -205,3 +159,4 @@ public class DemandeMapper {
     }
 
 }
+
