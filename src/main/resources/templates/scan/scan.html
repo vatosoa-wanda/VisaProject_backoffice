@@ -378,12 +378,27 @@
     <!-- Actions footer -->
     <div class="actions-footer">
         <a href="/demandes" class="btn btn-primary">Retour à la liste</a>
-        <button class="btn btn-primary" th:if="!${scanPage.dossierVerrouille}" onclick="alert('Fonction "Terminer le scan" assignée à Dev 1 - ETU003324')">
-            Terminer le scan
-        </button>
-        <button class="btn btn-primary" th:if="!${scanPage.dossierVerrouille}" onclick="alert('Fonction "Exporter PDF" assignée à Dev 1 - ETU003324')">
+
+        <div th:if="${!scanPage.dossierVerrouille and scanPage.nombreDocumentsFournis != scanPage.nombreDocumentsAttendus}"
+             class="locked-message">
+            <strong>⚠️ Scan incomplet</strong> - Vous devez scanner toutes les pièces avant de terminer.
+        </div>
+
+        <form th:if="!${scanPage.dossierVerrouille}"
+              th:action="@{/demandes/{id}/scan-terminer(id=${scanPage.demandeId})}"
+              method="post"
+              onsubmit="return confirm('Après validation, aucune modification ne sera possible. Continuer ?');">
+            <button type="submit"
+                    class="btn btn-primary"
+                    th:disabled="${scanPage.nombreDocumentsFournis != scanPage.nombreDocumentsAttendus}">
+                Terminer le scan
+            </button>
+        </form>
+
+        <a class="btn btn-primary"
+           th:href="@{/demandes/{id}/attestation(id=${scanPage.demandeId})}">
             Exporter PDF
-        </button>
+        </a>
     </div>
 </div>
 

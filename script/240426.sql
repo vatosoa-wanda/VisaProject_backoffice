@@ -97,6 +97,10 @@ INSERT INTO statut_demande (libelle) VALUES
 ('APPROUVEE'),
 ('REFUSEE');
 
+-- Sprint 3
+-- Important : insertion séparée pour ne pas décaler les IDs des statuts ci-dessus.
+INSERT INTO statut_demande (libelle) VALUES ('SCAN_TERMINE');
+
 
 CREATE TABLE demande (
     id SERIAL PRIMARY KEY,

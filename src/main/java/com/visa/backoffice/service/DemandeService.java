@@ -11,6 +11,7 @@ import com.visa.backoffice.dto.PieceDTO;
 import com.visa.backoffice.dto.TransfertCreateDTO;
 import com.visa.backoffice.dto.VisaTransformableDTO;
 import com.visa.backoffice.exception.BusinessException;
+import com.visa.backoffice.exception.DemandeVerrouilleException;
 import com.visa.backoffice.exception.ResourceNotFoundException;
 import com.visa.backoffice.mapper.DemandeMapper;
 import com.visa.backoffice.model.*;
@@ -41,6 +42,7 @@ public class DemandeService {
     private final CarteResidentService carteResidentService;
     private final DemandeMapper demandeMapper;
     private final PieceService pieceService;
+    private final DocumentRepository documentRepository;
 
     public DemandeService(DemandeRepository demandeRepository,
                          HistoriqueStatutRepository historiqueStatutRepository,
@@ -56,7 +58,8 @@ public class DemandeService {
                          DemandeMapper demandeMapper,
                          PieceService pieceService,
                          VisaService visaService,
-                         CarteResidentService carteResidentService) {
+                         CarteResidentService carteResidentService,
+                         DocumentRepository documentRepository) {
         this.demandeRepository = demandeRepository;
         this.historiqueStatutRepository = historiqueStatutRepository;
         this.demandePieceRepository = demandePieceRepository;
@@ -72,6 +75,7 @@ public class DemandeService {
         this.demandeMapper = demandeMapper;
         this.pieceService = pieceService;
         this.carteResidentService = carteResidentService;
+        this.documentRepository = documentRepository;
     }
 
     /**
@@ -258,6 +262,11 @@ public class DemandeService {
         Demande demande = demandeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
 
+        if (demande.getStatutDemande() != null
+            && "SCAN_TERMINE".equalsIgnoreCase(demande.getStatutDemande().getLibelle())) {
+            throw new DemandeVerrouilleException("Dossier verrouillé : impossible de modifier une demande au statut SCAN_TERMINE");
+        }
+
         if (demande.getDemandeur() == null || demande.getVisaTransformable() == null || demande.getVisaTransformable().getPasseport() == null) {
             throw new BusinessException("La demande est incomplète et ne peut pas être modifiée via le formulaire.");
         }
@@ -312,6 +321,11 @@ public class DemandeService {
         Demande demande = demandeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + id));
 
+        if (demande.getStatutDemande() != null
+            && "SCAN_TERMINE".equalsIgnoreCase(demande.getStatutDemande().getLibelle())) {
+            throw new DemandeVerrouilleException("Dossier verrouillé : impossible de modifier une demande au statut SCAN_TERMINE");
+        }
+
         if (demande.getDemandeur() == null || demande.getVisaTransformable() == null || demande.getVisaTransformable().getPasseport() == null) {
             throw new BusinessException("La demande est incomplète et ne peut pas être modifiée via le formulaire.");
         }
@@ -333,6 +347,33 @@ public class DemandeService {
         lierPiecesADemande(demande, dto.getPiecesFournies(), typeVisa);
 
         return demandeMapper.toResponseDTO(demande);
+    }
+
+    /**
+     * Verrouille la demande après scan : statut → SCAN_TERMINE + historisation.
+     * Règle : uniquement autorisé si statut courant = CREE.
+     */
+    public void terminerScan(Long demandeId) {
+        Demande demande = demandeRepository.findById(demandeId)
+            .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + demandeId));
+
+        String statutCourant = demande.getStatutDemande() != null ? demande.getStatutDemande().getLibelle() : null;
+        if (statutCourant == null || !"CREE".equalsIgnoreCase(statutCourant)) {
+            throw new BusinessException("Validation impossible : la demande doit être au statut CREE (statut actuel: " + statutCourant + ")");
+        }
+
+        long nombreDocumentsFournis = documentRepository.countByDemandeId(demandeId);
+        long nombreDocumentsAttendus = demandePieceRepository.countByDemandeId(demandeId);
+        if (nombreDocumentsFournis != nombreDocumentsAttendus) {
+            throw new BusinessException("Impossible de terminer le scan : " + nombreDocumentsFournis + "/" + nombreDocumentsAttendus + " pièce(s) scannée(s)");
+        }
+
+        StatutDemande statutScanTermine = statutDemandeRepository.findByLibelle("SCAN_TERMINE")
+            .orElseThrow(() -> new ResourceNotFoundException("StatutDemande SCAN_TERMINE introuvable en base"));
+
+        demande.setStatutDemande(statutScanTermine);
+        demandeRepository.save(demande);
+        creerHistoriqueStatut(demande, statutScanTermine, "Scan terminé (verrouillage) - demande id=" + demandeId);
     }
 
     /**
