@@ -49,7 +49,7 @@
         }
         .action-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 1rem;
             margin-top: 2rem;
         }
@@ -81,6 +81,7 @@
         }
         .icon-new { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
         .icon-dup { background: linear-gradient(135deg, #059669, #047857); }
+        .icon-trf { background: linear-gradient(135deg, #d97706, #b45309); }
         .action-title {
             font-weight: 700;
             margin-bottom: 0.15rem;
@@ -110,15 +111,15 @@
             <div class="col-lg-7">
                 <div class="hero-copy">
                     <div class="eyebrow mb-2">Backoffice Visa</div>
-                    <h1>Gestion des demandes de visa et de duplicata</h1>
-                    <p>Accédez directement au formulaire de nouvelle demande ou au flux de duplicata depuis cette page d’accueil.</p>
+                    <h1>Gestion des demandes de visa, duplicata et transfert</h1>
+                    <p>Accédez directement aux différents formulaires depuis cette page d'accueil.</p>
 
                     <div class="action-grid">
                         <a class="action-tile" th:href="@{/demandes/nouvelle}">
                             <span class="action-icon icon-new"><i class="bi bi-file-earmark-plus"></i></span>
                             <span>
                                 <span class="action-title d-block">Nouvelle demande</span>
-                                <span class="action-text d-block">Ouvrir le formulaire complet Sprint 1</span>
+                                <span class="action-text d-block">Formulaire complet</span>
                             </span>
                         </a>
 
@@ -126,13 +127,23 @@
                             <span class="action-icon icon-dup"><i class="bi bi-files"></i></span>
                             <span>
                                 <span class="action-title d-block">Demande de duplicata</span>
-                                <span class="action-text d-block">Lancer la recherche ou le dossier sans antériorité</span>
+                                <span class="action-text d-block">Carte résident perdue/volée</span>
+                            </span>
+                        </a>
+
+                        <a class="action-tile" th:href="@{/transfert/formulaire}">
+                            <span class="action-icon icon-trf"><i class="bi bi-arrow-left-right"></i></span>
+                            <span>
+                                <span class="action-title d-block">Demande de transfert</span>
+                                <span class="action-text d-block">Nouveau passeport</span>
                             </span>
                         </a>
                     </div>
 
                     <div class="mt-4">
                         <a class="footer-link" th:href="@{/demandes}">Voir la liste des demandes</a>
+                        <span class="mx-2 text-white-50">|</span>
+                        <a class="footer-link" th:href="@{/demandes/approbation/liste}">Demandes à approuver</a>
                     </div>
                 </div>
             </div>
@@ -141,9 +152,10 @@
                     <div class="mb-4">
                         <div class="text-uppercase small text-white-50 mb-2">Raccourcis</div>
                         <ul class="list-unstyled mb-0 text-white-50">
-                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Formulaire simple pour nouvelle demande</li>
-                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Flux duplicata avec ou sans antériorité</li>
-                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Confirmation dédiée après création</li>
+                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Nouvelle demande de visa</li>
+                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Duplicata avec/sans antériorité</li>
+                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Transfert avec/sans antériorité</li>
+                            <li class="mb-2"><i class="bi bi-check2-circle me-2"></i> Confirmation dédiée</li>
                         </ul>
                     </div>
                 </div>
