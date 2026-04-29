@@ -11,19 +11,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * TransfertController
- * Routes :
- *   GET /transfert/formulaire     → Afficher formulaire avec choix antécédent
- *   POST /transfert/formulaire    → Soumettre demande TRANSFERT
- *   GET /transfert/{id}/confirmation → Afficher confirmation
- */
 @Controller
 @RequestMapping("/transfert")
 public class TransfertController {
@@ -53,7 +48,6 @@ public class TransfertController {
                                     @RequestParam(required = false) Boolean rechercher,
                                     @ModelAttribute("recherche") DemandeRechercheDTO recherche,
                                     Model model) {
-        // Listes communes pour le formulaire
         model.addAttribute("typeVisas", typeVisaRepository.findAll());
         model.addAttribute("typesVisa", typeVisaRepository.findAll());
         model.addAttribute("situations", situationFamilialeRepository.findAll());
@@ -85,7 +79,7 @@ public class TransfertController {
         } else {
             demandeForm = DemandeCreateDTO.builder()
                     .typeDemande("TRANSFERT")
-                    .avecAntecedent(false)
+                    .avecAntecedent(avecAntecedent != null ? avecAntecedent : false)
                     .build();
         }
 
@@ -115,18 +109,61 @@ public class TransfertController {
 
     @PostMapping("/formulaire")
     public String soumettreFormulaire(
-            @Valid @ModelAttribute("demandeForm") DemandeCreateDTO dto,
+            @ModelAttribute("demandeForm") DemandeCreateDTO dto,  // Enlever @Valid ici
             BindingResult result,
             @RequestParam(required = false) String refreshPieces,
             Model model,
-            RedirectAttributes redirectAttributes) {  // AJOUTER RedirectAttributes
+            RedirectAttributes redirectAttributes) {
         
         System.out.println("=== SOUMISSION FORMULAIRE TRANSFERT ===");
         System.out.println("Type demande: " + dto.getTypeDemande());
         System.out.println("Avec antécédent: " + dto.getAvecAntecedent());
+        System.out.println("Id demande origine: " + dto.getIdDemandeOrigine());
         
-        if (result.hasErrors()) {
-            System.out.println("Erreurs de validation: " + result.getAllErrors());
+        // NE PAS utiliser result.getFieldErrors().clear() car c'est une liste immuable
+        // On va ignorer les erreurs des champs hérités en mode AVEC antécédent
+        
+        boolean hasRealErrors = false;
+        
+        if (Boolean.TRUE.equals(dto.getAvecAntecedent())) {
+            // En mode AVEC antécédent, on valide uniquement:
+            // - le nouveau passeport
+            // - le type de visa
+            // - les pièces
+            if (dto.getPasseportNouveauDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
+            }
+            if (dto.getIdTypeVisa() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le type de visa est obligatoire");
+            }
+        } else {
+            // En mode SANS antécédent, on valide tout normalement
+            // Simuler la validation manuellement
+            if (dto.getDemandeurDTO() == null || dto.getDemandeurDTO().getNom() == null || dto.getDemandeurDTO().getNom().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le nom du demandeur est obligatoire");
+            }
+            if (dto.getPasseportDTO() == null || dto.getPasseportDTO().getNumero() == null || dto.getPasseportDTO().getNumero().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le numéro de passeport est obligatoire");
+            }
+            if (dto.getVisaDTO() == null || dto.getVisaDTO().getReferenceVisa() == null || dto.getVisaDTO().getReferenceVisa().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "La référence visa est obligatoire");
+            }
+            if (dto.getPasseportNouveauDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
+            }
+            if (dto.getIdTypeVisa() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le type de visa est obligatoire");
+            }
+        }
+        
+        if (hasRealErrors) {
             model.addAttribute("typeVisas", typeVisaRepository.findAll());
             model.addAttribute("typesVisa", typeVisaRepository.findAll());
             model.addAttribute("situations", situationFamilialeRepository.findAll());
@@ -141,6 +178,7 @@ public class TransfertController {
             model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
             model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
             model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
             return "demande/formulaire";
         }
 
@@ -159,6 +197,7 @@ public class TransfertController {
             model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
             model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
             model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
             return "demande/formulaire";
         }
 
@@ -168,10 +207,6 @@ public class TransfertController {
             // ========== CAS SANS ANTÉCÉDENT ==========
             if (Boolean.FALSE.equals(dto.getAvecAntecedent())) {
                 System.out.println("=== CAS TRANSFERT SANS ANTÉCÉDENT ===");
-                
-                if (dto.getPasseportNouveauDTO() == null) {
-                    throw new BusinessException("Les informations du nouveau passeport sont obligatoires");
-                }
                 
                 System.out.println("1. Création de la demande NOUVELLE...");
                 DemandeResponseDTO nouvelleDemande = demandeService.creerDemande(dto);
@@ -231,6 +266,7 @@ public class TransfertController {
             model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
             model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
             model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
             return "demande/formulaire";
             
         } catch (Exception e) {
@@ -251,6 +287,7 @@ public class TransfertController {
             model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
             model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
             model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
             return "demande/formulaire";
         }
     }
