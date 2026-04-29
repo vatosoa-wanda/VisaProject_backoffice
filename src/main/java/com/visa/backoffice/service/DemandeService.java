@@ -694,37 +694,64 @@ private String genererReferenceVisa(String prefixe) {
     /**
      * Rechercher les demandes APPROUVEE de type NOUVELLE (pour TRANSFERT avec antécédent)
      */
-    public List<DemandeResumeeDTO> rechercherDemandesApprouveesPourTransfert(DemandeRechercheDTO criteres) {
-        if ((criteres.getNom() == null || criteres.getNom().isBlank())
-                && (criteres.getNumeroPasSeport() == null || criteres.getNumeroPasSeport().isBlank())
-                && (criteres.getReferenceVisa() == null || criteres.getReferenceVisa().isBlank())) {
-            throw new BusinessException("Au moins un critère de recherche est requis");
-        }
-
-        return demandeRepository.findByStatutDemandeLibelleAndTypeDemandeLibelle("APPROUVEE", "NOUVELLE").stream()
-                .filter(d -> d.getDemandeur() != null)
-                .filter(d -> {
-                    boolean match = true;
-                    if (criteres.getNom() != null && !criteres.getNom().isBlank()) {
-                        match = match && d.getDemandeur().getNom() != null && 
-                                d.getDemandeur().getNom().toLowerCase().contains(criteres.getNom().toLowerCase());
-                    }
-                    if (criteres.getNumeroPasSeport() != null && !criteres.getNumeroPasSeport().isBlank()) {
-                        String numeroPasseport = d.getVisaTransformable() != null && d.getVisaTransformable().getPasseport() != null 
-                                ? d.getVisaTransformable().getPasseport().getNumero() : null;
-                        match = match && numeroPasseport != null && 
-                                criteres.getNumeroPasSeport().equalsIgnoreCase(numeroPasseport);
-                    }
-                    if (criteres.getReferenceVisa() != null && !criteres.getReferenceVisa().isBlank()) {
-                        String refVisa = d.getVisaTransformable() != null ? d.getVisaTransformable().getReferenceVisa() : null;
-                        match = match && refVisa != null && 
-                                criteres.getReferenceVisa().equalsIgnoreCase(refVisa);
-                    }
-                    return match;
-                })
-                .map(this::convertToDemandeResumeeDTO)
-                .collect(Collectors.toList());
+    /**
+ * Rechercher les demandes APPROUVEE de type NOUVELLE (pour TRANSFERT avec antécédent)
+ */
+public List<DemandeResumeeDTO> rechercherDemandesApprouveesPourTransfert(DemandeRechercheDTO criteres) {
+    System.out.println("=== RECHERCHE TRANSFERT ===");
+    System.out.println("Nom: " + criteres.getNom());
+    System.out.println("Numero Passeport: " + criteres.getNumeroPasSeport());
+    System.out.println("Reference Visa: " + criteres.getReferenceVisa());
+    
+    if ((criteres.getNom() == null || criteres.getNom().isBlank())
+            && (criteres.getNumeroPasSeport() == null || criteres.getNumeroPasSeport().isBlank())
+            && (criteres.getReferenceVisa() == null || criteres.getReferenceVisa().isBlank())) {
+        throw new BusinessException("Au moins un critère de recherche est requis");
     }
+    
+    // Récupérer toutes les demandes APPROUVEE de type NOUVELLE
+    List<Demande> demandes = demandeRepository.findByStatutDemandeLibelleAndTypeDemandeLibelle("APPROUVEE", "NOUVELLE");
+    
+    System.out.println("Total demandes APPROUVEE + NOUVELLE trouvées: " + demandes.size());
+    
+    // Filtrer les résultats
+    List<DemandeResumeeDTO> results = demandes.stream()
+        .filter(d -> {
+            boolean match = true;
+            
+            // Filtre par nom
+            if (criteres.getNom() != null && !criteres.getNom().isBlank()) {
+                String nomDemandeur = d.getDemandeur() != null ? d.getDemandeur().getNom() : "";
+                match = match && nomDemandeur.toLowerCase().contains(criteres.getNom().toLowerCase());
+                System.out.println("Filtre nom: " + nomDemandeur + " contains " + criteres.getNom() + " = " + match);
+            }
+            
+            // Filtre par numéro passeport
+            if (criteres.getNumeroPasSeport() != null && !criteres.getNumeroPasSeport().isBlank() && match) {
+                String numeroPasseport = "";
+                if (d.getVisaTransformable() != null && d.getVisaTransformable().getPasseport() != null) {
+                    numeroPasseport = d.getVisaTransformable().getPasseport().getNumero();
+                }
+                match = match && numeroPasseport.equalsIgnoreCase(criteres.getNumeroPasSeport());
+                System.out.println("Filtre passeport: " + numeroPasseport + " == " + criteres.getNumeroPasSeport() + " = " + match);
+            }
+            
+            // Filtre par référence visa
+            if (criteres.getReferenceVisa() != null && !criteres.getReferenceVisa().isBlank() && match) {
+                String refVisa = d.getVisaTransformable() != null ? d.getVisaTransformable().getReferenceVisa() : "";
+                match = match && refVisa.equalsIgnoreCase(criteres.getReferenceVisa());
+                System.out.println("Filtre visa: " + refVisa + " == " + criteres.getReferenceVisa() + " = " + match);
+            }
+            
+            return match;
+        })
+        .map(this::convertToDemandeResumeeDTO)
+        .collect(Collectors.toList());
+    
+    System.out.println("Résultats trouvés: " + results.size());
+    
+    return results;
+}
 
     /**
      * Convertit une Demande en DemandeResumeeDTO
