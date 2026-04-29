@@ -3,8 +3,10 @@ package com.visa.backoffice.controller;
 import com.visa.backoffice.dto.*;
 import com.visa.backoffice.exception.ResourceNotFoundException;
 import com.visa.backoffice.model.Demande;
+import com.visa.backoffice.model.DemandePiece;
 import com.visa.backoffice.model.Demandeur;
 import com.visa.backoffice.model.Passeport;
+import com.visa.backoffice.model.Piece;
 import com.visa.backoffice.model.VisaTransformable;
 import com.visa.backoffice.repository.*;
 import com.visa.backoffice.service.DocumentService;
@@ -15,6 +17,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/demandes/{id}/scan")
@@ -102,7 +105,14 @@ public class ScanController {
                 .build();
 
             model.addAttribute("scanPage", pageDTO);
-            model.addAttribute("typePieces", pieceRepository.findAll());
+
+            List<Piece> piecesDemande = demandePieceRepository.findByDemandeId(id).stream()
+                .map(DemandePiece::getPiece)
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(p -> p.getNom() != null ? p.getNom() : ""))
+                .collect(Collectors.toList());
+
+            model.addAttribute("typePieces", piecesDemande);
             model.addAttribute("pageTitle", "Scan des pièces justificatives");
 
             log.info("Page scan affichée - demande: {}, statut: {}", id, statut);

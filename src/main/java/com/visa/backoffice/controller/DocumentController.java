@@ -81,8 +81,10 @@ public class DocumentController {
         try {
             byte[] fileContent = documentService.getDocumentFile(id);
 
+            String nomOriginal = documentService.getNomOriginalDocument(id);
+
             // Détermine le content-type basé sur l'extension
-            String contentType = "application/octet-stream";
+            String contentType = documentService.determineContentType(nomOriginal);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, contentType)

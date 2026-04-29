@@ -4,14 +4,19 @@ import com.visa.backoffice.dto.DemandeCreateDTO;
 import com.visa.backoffice.dto.DemandeResponseDTO;
 import com.visa.backoffice.dto.PieceDTO;
 import com.visa.backoffice.exception.BusinessException;
+import com.visa.backoffice.exception.DemandeVerrouilleException;
+import com.visa.backoffice.exception.ResourceNotFoundException;
 import com.visa.backoffice.repository.NationaliteRepository;
 import com.visa.backoffice.repository.SituationFamilialeRepository;
 import com.visa.backoffice.repository.StatutDemandeRepository;
 import com.visa.backoffice.repository.TypeVisaRepository;
 import com.visa.backoffice.service.DemandeService;
 import com.visa.backoffice.service.PieceService;
+import com.visa.backoffice.service.PdfService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -30,19 +35,22 @@ public class DemandeController {
     private final NationaliteRepository nationaliteRepository;
     private final PieceService pieceService;
     private final StatutDemandeRepository statutDemandeRepository;
+    private final PdfService pdfService;
 
     public DemandeController(DemandeService demandeService,
                             TypeVisaRepository typeVisaRepository,
                             SituationFamilialeRepository situationFamilialeRepository,
                             NationaliteRepository nationaliteRepository,
                             PieceService pieceService,
-                            StatutDemandeRepository statutDemandeRepository) {
+                            StatutDemandeRepository statutDemandeRepository,
+                            PdfService pdfService) {
         this.demandeService = demandeService;
         this.typeVisaRepository = typeVisaRepository;
         this.situationFamilialeRepository = situationFamilialeRepository;
         this.nationaliteRepository = nationaliteRepository;
         this.pieceService = pieceService;
         this.statutDemandeRepository = statutDemandeRepository;
+        this.pdfService = pdfService;
     }
 
     /**
@@ -130,19 +138,24 @@ public class DemandeController {
      * Afficher le formulaire pré-rempli pour modification
      */
     @GetMapping("/{id}/modifier")
-    public String afficherFormulaireModification(@PathVariable Long id, Model model) {
-        DemandeCreateDTO form = demandeService.getDemandePourModification(id);
-        model.addAttribute("demandeForm", form);
-        model.addAttribute("typesVisa", typeVisaRepository.findAll());
-        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
-        model.addAttribute("nationalites", nationaliteRepository.findAll());
-        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
-        model.addAttribute("piecesSpecifiques", form.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(form.getIdTypeVisa()) : List.of());
-        model.addAttribute("pageTitle", "Modifier la demande #" + id);
-        model.addAttribute("formAction", "/demandes/" + id + "/modifier");
-        model.addAttribute("submitLabel", "METTRE À JOUR");
-        model.addAttribute("cancelUrl", "/demandes/" + id + "/details");
-        return "demande/formulaire";
+    public String afficherFormulaireModification(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+        try {
+            DemandeCreateDTO form = demandeService.getDemandePourModification(id);
+            model.addAttribute("demandeForm", form);
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            model.addAttribute("piecesSpecifiques", form.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(form.getIdTypeVisa()) : List.of());
+            model.addAttribute("pageTitle", "Modifier la demande #" + id);
+            model.addAttribute("formAction", "/demandes/" + id + "/modifier");
+            model.addAttribute("submitLabel", "METTRE À JOUR");
+            model.addAttribute("cancelUrl", "/demandes/" + id + "/details");
+            return "demande/formulaire";
+        } catch (DemandeVerrouilleException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/demandes/" + id + "/details";
+        }
     }
 
     /**
@@ -173,6 +186,9 @@ public class DemandeController {
             demandeService.modifierDemande(id, dto);
             redirectAttributes.addFlashAttribute("successMessage", "Demande mise à jour avec succès");
             return "redirect:/demandes/" + id + "/details";
+        } catch (DemandeVerrouilleException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/demandes/" + id + "/details";
         } catch (BusinessException e) {
             model.addAttribute("errorMessage", e.getMessage());
             model.addAttribute("typesVisa", typeVisaRepository.findAll());
@@ -185,6 +201,45 @@ public class DemandeController {
             model.addAttribute("submitLabel", "METTRE À JOUR");
             model.addAttribute("cancelUrl", "/demandes/" + id + "/details");
             return "demande/formulaire";
+        }
+    }
+
+    /**
+     * POST /demandes/{id}/scan-terminer
+     * Verrouille le dossier : statut → SCAN_TERMINE
+     */
+    @PostMapping("/{id}/scan-terminer")
+    public String terminerScan(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            demandeService.terminerScan(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Scan terminé : dossier verrouillé");
+        } catch (BusinessException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        } catch (ResourceNotFoundException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Erreur lors de la validation du scan : " + e.getMessage());
+        }
+        return "redirect:/demandes/" + id + "/scan";
+    }
+
+    /**
+     * GET /demandes/{id}/attestation
+     * Exporte l'attestation PDF du dossier.
+     */
+    @GetMapping("/{id}/attestation")
+    @ResponseBody
+    public ResponseEntity<byte[]> exporterAttestation(@PathVariable Long id) {
+        try {
+            byte[] pdf = pdfService.genererAttestation(id);
+            String reference = "DEM-" + String.format("%06d", id);
+
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"attestation_" + reference + ".pdf\"")
+                .body(pdf);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
         }
     }
 

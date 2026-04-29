@@ -279,7 +279,8 @@
                                        class="btn btn-sm btn-details">
                                         <i class="bi bi-eye"></i> Détails
                                     </a>
-                                    <a th:href="'/demandes/' + ${demande.id} + '/modifier'"
+                                                <a th:if="${demande.statutDemande != 'SCAN_TERMINE'}"
+                                                    th:href="'/demandes/' + ${demande.id} + '/modifier'"
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-pencil"></i> Modifier
                                     </a>

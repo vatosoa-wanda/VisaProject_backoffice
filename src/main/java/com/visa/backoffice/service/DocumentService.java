@@ -285,6 +285,16 @@ public class DocumentService {
     }
 
     /**
+     * Récupère le nom original du document (pour déterminer le Content-Type côté contrôleur).
+     */
+    @Transactional(readOnly = true)
+    public String getNomOriginalDocument(Long docId) {
+        Document document = documentRepository.findById(docId)
+            .orElseThrow(() -> new ResourceNotFoundException("Document introuvable : id=" + docId));
+        return document.getNomOriginal();
+    }
+
+    /**
      * Détermine le Content-Type basé sur l'extension du fichier
      */
     public String determineContentType(String nomFichier) {
