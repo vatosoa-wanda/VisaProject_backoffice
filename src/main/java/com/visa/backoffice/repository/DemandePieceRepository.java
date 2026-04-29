@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DemandePieceRepository extends JpaRepository<DemandePiece, Long> {
+    long countByDemandeId(Long demandeId);
 }

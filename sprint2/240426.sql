@@ -49,7 +49,7 @@ CREATE TABLE passeport (
     numero VARCHAR(50) UNIQUE,
     date_delivrance DATE,
     date_expiration DATE,
-    id_demandeur INT, 
+    id_demandeur INT,
     FOREIGN KEY (id_demandeur) REFERENCES demandeur(id)
 );
 
@@ -60,7 +60,7 @@ CREATE TABLE visa_transformable (
     lieu_entree VARCHAR(100),
     date_expiration DATE,
     id_demandeur INT,
-    id_passeport INT, 
+    id_passeport INT,
     FOREIGN KEY (id_demandeur) REFERENCES demandeur(id),
     FOREIGN KEY (id_passeport) REFERENCES passeport(id)
 );
@@ -208,19 +208,3 @@ CREATE TABLE demande_piece (
     FOREIGN KEY (id_piece) REFERENCES piece(id)
 );
 
--- Table pour la gestion des documents uploadés
-CREATE TABLE document (
-    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    id_demande BIGINT NOT NULL,
-    id_piece BIGINT NOT NULL,
-    nom_original VARCHAR(255) NOT NULL,
-    chemin_fichier VARCHAR(500) NOT NULL,
-    taille_fichier BIGINT,
-    type_mime VARCHAR(100),
-    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (id_demande) REFERENCES demande(id) ON DELETE CASCADE,
-    FOREIGN KEY (id_piece) REFERENCES piece(id)
-);
-
-CREATE INDEX idx_document_demande ON document(id_demande);
-CREATE INDEX idx_document_piece ON document(id_piece);

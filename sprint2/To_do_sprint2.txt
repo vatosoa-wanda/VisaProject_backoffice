@@ -1,0 +1,81 @@
+Team Lead :
+    ETU003350 / Harimalala Ericka
+
+Developpeurs :
+    ETU003324 / Harenkantou
+    ETU003366 / Vatosoa Wanda
+
+BACKOFFICE
+Module : Demande de Duplicata (Sprint 2)
+
+---------------------------------------------------------------------
+TACHE 1 : Fondations techniques (entite, DTO, repository, SQL)
+Responsable : ETU003324
+
+Metier :
+    - Ajouter le champ demandeOrigine dans l'entite Demande
+      (self-join, nullable pour NOUVELLE, obligatoire pour DUPLICATA)
+    - Creer les DTOs : DuplicataCreateDTO, DuplicataResponseDTO,
+      DemandeRechercheDTO, DemandeResumeeDTO
+    - Modifier DemandeRepository : methodes de recherche par statut
+      APPROUVEE, par passeport, par reference visa, existence duplicata actif
+    - Executer script SQL migration (type DUPLICATA, colonne id_demande_origine,
+      statut REFUSEE)
+
+Regles de gestion couvertes : RG-01, RG-02, RG-03, RG-12 (partie repository)
+
+Fichiers modifies/crees :
+    - entity/Demande.java (modif)
+    - dto/DuplicataCreateDTO.java (nouveau)
+    - dto/DuplicataResponseDTO.java (nouveau)
+    - dto/DemandeRechercheDTO.java (nouveau)
+    - dto/DemandeResumeeDTO.java (nouveau)
+    - repository/DemandeRepository.java (modif)
+    - script SQL migration
+
+Tests associes :
+    - DemandeEntityModifTest (T-01 a T-03)
+    - DuplicataDtoValidationTest (T-04 a T-07)
+    - DemandeRepositorySpring2Test (T-08 a T-12)
+
+---------------------------------------------------------------------
+TACHE 2 : Logique metier, controleurs et IHM
+Responsable : ETU003366
+
+Metier :
+    - Implemementer approuverDemande() : CREE -> APPROUVEE (RG-04, RG-05)
+    - Implemementer creerDuplicata() : creation demande DUPLICATA
+      avec heritage, verification pieces obligatoires, anti-doublon
+      (RG-06 a RG-11)
+    - Implemementer rechercherDemandesApprouvees() : recherche multicriteres
+      (RG-12)
+    - Implemementer getDuplicata()
+    - Modifier DemandeMapper : ajout toDuplicataResponseDTO() et
+      toDemandeResumeeDTO()
+    - Ajouter endpoints REST et vues Thymeleaf pour les deux cas :
+        - /duplicata/choix
+        - Cas A : formulaire complet -> approbation -> duplicata
+        - Cas B : recherche -> selection -> formulaire leger -> confirmation
+    - Creer les templates HTML : choix-cas.html, recherche-demande.html,
+      formulaire-cas-a.html, approbation.html, formulaire-cas-b.html,
+      confirmation-duplicata.html
+
+Regles de gestion couvertes : RG-04 a RG-13
+
+Fichiers modifies/crees :
+    - service/DemandeService.java (modif)
+    - mapper/DemandeMapper.java (modif)
+    - controller/DemandeController.java (modif)
+    - templates/duplicata/*.html (6 fichiers nouveaux)
+    - templates/demande/approbation.html (nouveau)
+
+Tests associes :
+    - DemandeMapperSpring2Test (T-13 a T-15)
+    - DemandeServiceDuplicataTest (T-16 a T-29)
+    - DuplicataControllerTest (T-30 a T-38)
+
+---------------------------------------------------------------------
+Note : Les deux taches sont independantes. Tache 1 prepare les briques
+de donnees et DTO. Tache 2 utilise ces briques pour la logique metier
+et l'IHM. Aucun conflit de fichiers (sauf Demande.java et
+DemandeRepository geres par Tache 1 seulement).

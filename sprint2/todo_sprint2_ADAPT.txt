@@ -1,0 +1,297 @@
+════════════════════════════════════════════════════════════════════════════════
+  SPRINT 2 - ADAPTÉ : Réutilisation du formulaire existant avec type_demande
+════════════════════════════════════════════════════════════════════════════════
+
+TL    : ETU003366 / vatosoa-wanda
+Dev 1 : ETU003324 / Harenkantou   ← Visa + CarteResident + ApprobationAuto + TRANSFERT
+Dev 2 : ETU003350 / HarimalalaEricka   ← DUPLICATA + Recherche + Formulaire adaptatif
+
+────────────────────────────────────────────────────────────────────────────────
+NOTES IMPORTANTES
+────────────────────────────────────────────────────────────────────────────────
+
+1. APPROCHE UNIFIÉE
+   ✅ Réutiliser la MÊME page formulaire.html (Sprint 1)
+   ✅ Ajouter un SELECT type_demande { NOUVELLE | DUPLICATA | TRANSFERT }
+   ✅ Affichage contextuel selon le type choisi (JS côté client + logique serveur)
+   ✅ Routes consolidées par type de demande (pas de duplication de pages)
+
+2. FORMULAIRE ADAPTATIF (formulaire.html)
+   Bloc NOUVEAU = Type de demande (SELECT)
+     ├─ NOUVELLE
+     │   └─ Affiche tous les blocs Sprint 1 (état civil, passeport, visa, pièces)
+     ├─ DUPLICATA / TRANSFERT
+     │   └─ Affiche d'abord : Choix antécédent (AVEC / SANS)
+     │       → AVEC : Affiche recherche + blocs lecture seule
+     │       → SANS : Affiche tous les blocs Sprint 1 + champs spécifiques (transfert)
+
+
+════════════════════════════════════════════════════════════════════════════════
+FORMULAIRE.HTML — MODIFICATIONS
+════════════════════════════════════════════════════════════════════════════════
+
+✅ CONSERVE
+├─ Bloc État civil (état civil, lieu naissance, situation familiale, nationalité)
+├─ Bloc Passeport
+├─ Bloc Visa transformable
+├─ Bloc Type visa (Select)
+├─ Bloc Pièces communes + spécifiques
+└─ Prise en charge AJAX pour pièces spécifiques
+
+➕ AJOUTE (pour Sprint 2)
+├─ Section "ANCIEN PASSEPORT" (read-only, optionnelle)
+│  └─ Affichée si idDemandOrigine est passé (cas AVEC donnees anterieures)
+│
+├─ Section "NOUVEAU PASSEPORT" (form fields, optionnelle)
+│  ├─ Numéro (UNIQUE, validation ≠ ancien)
+│  ├─ Date délivrance
+│  └─ Date expiration
+│  └─ Affichée si typeDemande=TRANSFERT
+│
+└─ Bannière/Titre dynamique
+   ├─ "Nouvelle demande" si typeDemande=NOUVELLE
+   ├─ "Duplicata" si typeDemande=DUPLICATA
+   ├─ "Transfert" si typeDemande=TRANSFERT
+   └─ "Étape 1/2 — Auto-approbation" si pas d'antécédent
+
+
+3. FLUX DE NAVIGATION PROPOSÉ
+   /demandes/formulaire-type              GET → Choix type de demande (NOUVELLE, DUPLICATA, TRANSFERT)
+                                                 (ou SELECT direct dans formulaire)
+     ↓
+   /demandes/nouvelle-demande             GET → Formulaire NOUVELLE (tous les blocs)
+   /duplicata/formulaire                  GET → Formulaire DUPLICATA (choix avec/sans antécédent)
+   /transfert/formulaire                  GET → Formulaire TRANSFERT (choix avec/sans antécédent)
+
+4. SCRIPT SQL 240426.sql DÉJÀ FOURNI
+   ✅ Nouvelle colonne : demande.id_demande_origine
+
+════════════════════════════════════════════════════════════════════════════════
+RÈGLES MÉTIER (Résumé rapide)
+════════════════════════════════════════════════════════════════════════════════
+
+RG-01 : toute demande NOUVELLE approuvée → création auto visa + carte_resident
+RG-02 : DUPLICATA = perte carte résident (visa intact)
+RG-03 : TRANSFERT = perte/expiration passeport (carte_resident intacte, ancien visa désactivé)
+RG-05 : sans antériorité → NOUVELLE créée + approuvée auto + DUPLICATA/TRANSFERT auto
+RG-06 : DUPLICATA crée une carte_resident uniquement
+RG-07 : TRANSFERT crée un visa uniquement
+RG-08 : id_demande_origine → toujours NOUVELLE + APPROUVEE
+
+════════════════════════════════════════════════════════════════════════════════
+TÂCHES : ENTITÉS VISA + CARTE_RESIDENT (Dev 1 EN PRIORITÉ) / ETU003324
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Visa Entity & Service
+├─ Entité  : Visa.java (id, reference_visa, date_debut, date_fin, id_passeport, id_demande)
+├─ DTO     : VisaDTO.java
+├─ Repo    : VisaRepository.java
+│  └─ Méthodes : findByDemandeId(), findByPasseportId(), findByDemandeIdAndDateFinAfter()
+├─ Service : VisaService.java
+│  ├─ creer(Demande, Passeport) : génère referenceVisa, dateDebut=today
+│  └─ desactiver(idDemande) : met dateFin=today sur le visa actif
+├─ Tests   : ✅ creer() → referenceVisa non vide, dateDebut=today
+│           ✅ desactiver() → dateFin=today
+└─ Responsable : Dev 1 / ETU003324
+
+Tache : CarteResident Entity & Service
+├─ Entité  : CarteResident.java (id, numero_carte UNIQUE, date_debut, date_fin, id_passeport, id_demande)
+├─ DTO     : CarteResidentDTO.java
+├─ Repo    : CarteResidentRepository.java
+│  └─ Méthodes : findByDemandeId(), findByNumeroCarte()
+├─ Service : CarteResidentService.java
+│  └─ creer(Demande, Passeport) : génère numeroCarte, dateDebut=today
+├─ Tests   : ✅ creer() → numeroCarte non vide, dateDebut=today
+│           ✅ creer() sans passeport → BusinessException
+└─ Responsable : Dev 1 / ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+TÂCHES : APPROBATION NOUVELLE (Dev 1) / ETU003324
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : approuverDemandeNouvelle() dans DemandeService
+├─ Affichage : demande/approbation.html (récapitulatif + bouton Approuver + commentaire)
+├─ Métier    : ajouter dans DemandeService
+│  └─ approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique)
+│      1. Charger demande → erreur si absente
+│      2. Vérifier statut=CREE et type=NOUVELLE → BusinessException sinon
+│      3. Passer statut → APPROUVEE, sauvegarder
+│      4. Créer historique ("Approbation automatique" si automatique=true)
+│      5. visaService.creer(demande, passeport)           ← RG-01
+│      6. carteResidentService.creer(demande, passeport)  ← RG-01
+├─ Tests   : ✅ approbation OK → statut=APPROUVEE, visa créé, carte créé, historique créé
+│           ✅ statut déjà APPROUVEE ou type≠NOUVELLE → BusinessException
+└─ Responsable : Dev 1 / ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+TÂCHES : DUPLICATA (Dev 2) / ETU003350
+════════════════════════════════════════════════════════════════════════════════
+
+┌─ APPROCHE UNIFIÉE : Page "choix antécédent" en début du flux ─────────────────
+
+Tache : Page de choix + Recherche dossier
+├─ Affichage : /duplicata/formulaire GET
+│  ├─ Étape 1 : "Avez-vous déjà une demande approuvée ?" → AVEC / SANS
+│  ├─ AVEC    : Affiche recherche (nom / n° passeport / ref visa)
+│  │           Tableau résultats avec lien "Continuer →" par ligne
+│  └─ SANS    : Affiche message "Vous allez remplir le dossier complet..."
+│
+├─ Métier  : DemandeService.rechercherDemandesApprouvees(DemandeRechercheDTO)
+│  └─ Retourne : List<DemandeResumeeDTO>
+│     • Filtre : statut=APPROUVEE ET type=NOUVELLE uniquement
+│     • Au moins 1 critère requis → BusinessException
+│
+├─ Tests   : ✅ sans critère → BusinessException
+│           ✅ par nom → liste
+│           ✅ résultats type≠NOUVELLE exclus
+└─ Responsable : Dev 2 / ETU003350
+
+Tache : CAS 1.1 — DUPLICATA AVEC ANTÉRIORITÉ
+├─ Affichage : /duplicata/formulaire?idDemandOrigine=1 GET
+│  ├─ Bloc LECTURE SEULE (hérités de l'origine) :
+│  │  • Demandeur (nom, prénom, date naissance, situation familiale)
+│  │  • Passeport (numéro, dates)
+│  │  • Visa transformable (référence, dates, lieu)
+│  │
+│  ├─ Bloc TYPE VISA : Select (hérité, pré-rempli)
+│  │
+│  ├─ Bloc PIÈCES :
+│  │  • Communes (statique)
+│  │  • Spécifiques : AJAX /demandes/pieces?idTypeVisa=X
+│  │
+│  └─ Page confirmation : /duplicata/{id}/confirmation GET
+│
+├─ Métier  : POST /duplicata/formulaire
+│  └─ creerDuplicata(DuplicataCreateDTO) dans DemandeService
+│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
+│     2. Vérifier absence doublon DUPLICATA actif (statut CREE) sur cette origine
+│     3. Créer demande DUPLICATA (hérite demandeur, visa, typeVisa de l'origine)
+│     4. Créer historique + lier pièces (réutiliser lierPiecesADemande() Sprint 1)
+│     5. carteResidentService.creer() ← RG-06 : nouvelle carte uniquement, visa intact
+│
+├─ Base    : insert demande (DUPLICATA), historique_statut, demande_piece, carte_resident
+├─ Tests   : ✅ creerDuplicata() OK → carte créée, visa NON créé, historique créé
+│           ✅ origine CREE/REFUSEE ou type≠NOUVELLE → BusinessException
+│           ✅ doublon → BusinessException
+└─ Responsable : Dev 2 / ETU003350
+
+Tache : CAS 1.2 — DUPLICATA SANS ANTÉRIORITÉ
+├─ Affichage : /duplicata/formulaire GET (aucun paramètre)
+│  ├─ Bannière : "Étape 1/2 — dossier sera approuvé automatiquement"
+│  ├─ Formulaire COMPLET (réutiliser formulaire.html)
+│  │  • Tous les blocs Sprint 1 (état civil, passeport, visa, pièces)
+│  │  • Type visa : Select
+│  │
+│  └─ Action → POST /duplicata/formulaire (sans idDemandOrigine)
+│
+├─ Métier  : POST handler dans DemandeController
+│  1. creerDemande(dto)                           → NOUVELLE statut=CREE
+│  2. approuverDemandeNouvelle(id, null, true)    → APPROUVEE auto + visa + carte (RG-01)
+│  3. creerDuplicata(idDemandeOrigine=id)         → DUPLICATA + nouvelle carte (RG-06)
+│  4. Rediriger vers /duplicata/{id}/confirmation
+│
+├─ Base    : insert demande×2, visa×1, carte_resident×2, historique_statut×2, demande_piece×2
+├─ Tests   : ✅ flux complet → 2 demandes, 1 visa, 2 cartes, NOUVELLE=APPROUVEE, DUPLICATA=CREE
+└─ Responsable : Dev 2 / ETU003350
+
+════════════════════════════════════════════════════════════════════════════════
+TÂCHES : TRANSFERT (Dev 1) / ETU003324
+════════════════════════════════════════════════════════════════════════════════
+
+┌─ APPROCHE UNIFIÉE : Page "choix antécédent" en début du flux ─────────────────
+
+Tache : CAS 2.1 — TRANSFERT AVEC ANTÉRIORITÉ
+├─ Affichage : /transfert/formulaire?idDemandOrigine=1 GET
+│  ├─ Bloc LECTURE SEULE (hérités de l'origine) :
+│  │  • Demandeur
+│  │  • ANCIEN PASSEPORT (numéro, dates)
+│  │  • Visa transformable
+│  │
+│  ├─ Bloc NOUVEAU PASSEPORT (O) :
+│  │  • Numéro (UNIQUE, ≠ ancien)
+│  │  • Date délivrance
+│  │  • Date expiration
+│  │
+│  ├─ Bloc TYPE VISA : Select
+│  │
+│  ├─ Bloc PIÈCES :
+│  │  • Communes (statique)
+│  │  • Spécifiques : AJAX /demandes/pieces?idTypeVisa=X
+│  │
+│  └─ Page confirmation : /transfert/{id}/confirmation GET
+│
+├─ Métier  : POST /transfert/formulaire
+│  └─ creerTransfert(TransfertCreateDTO) dans DemandeService
+│     1. Vérifier origine : statut=APPROUVEE + type=NOUVELLE → BusinessException sinon
+│     2. Vérifier absence doublon TRANSFERT actif sur cette origine
+│     3. Créer nouveau Passeport via passeportService.creer() (numéro ≠ ancien)
+│     4. Créer demande TRANSFERT (hérite demandeur, visa, typeVisa)
+│     5. visaService.desactiver(origineId)              ← RG-07 : ancien visa inactif
+│     6. visaService.creer(transfert, nouveauPasseport) ← RG-07 : nouveau visa
+│     7. carte_resident inchangée (pas de création)
+│
+├─ Base    : insert passeport (nouveau), demande (TRANSFERT), historique_statut, demande_piece, visa (nouveau)
+│           update visa (dateFin=today sur l'ancien)
+├─ Tests   : ✅ creerTransfert() OK → nouveau visa créé, ancien désactivé, carte NON créée
+│           ✅ origine invalide ou doublon → BusinessException
+│           ✅ même numéro passeport → BusinessException
+└─ Responsable : Dev 1
+
+Tache : CAS 2.2 — TRANSFERT SANS ANTÉRIORITÉ
+├─ Affichage : /transfert/formulaire GET (aucun paramètre)
+│  ├─ Bannière : "Étape 1/2 — dossier sera approuvé automatiquement"
+│  ├─ Formulaire COMPLET (réutiliser formulaire.html)
+│  │  • Blocs Sprint 1 : État civil, ANCIEN PASSEPORT, Visa, Type visa, Pièces
+│  │  • Bloc NOUVEAU PASSEPORT (O) : Numéro, Date délivrance, Date expiration
+│  │
+│  └─ Action → POST /transfert/formulaire (sans idDemandOrigine)
+│
+├─ Métier  : POST handler dans DemandeController
+│  1. creerDemande(dto)                           → NOUVELLE statut=CREE
+│  2. approuverDemandeNouvelle(id, null, true)    → APPROUVEE auto + visa + carte (RG-01)
+│  3. creerTransfert(idDemandeOrigine=id,
+│                   nouveauPasseport=dto.nouveauPasseport) → ancien visa désactivé + nouveau visa
+│  4. Rediriger vers /transfert/{id}/confirmation
+│
+├─ Base    : insert demande×2, passeport×2, visa×2 (1 désactivé + 1 nouveau), carte_resident×1,
+│           historique_statut×2, demande_piece×2
+├─ Tests   : ✅ flux complet → 2 demandes, 2 passeports, ancien visa désactivé, nouveau visa créé, 1 carte inchangée
+└─ Responsable : Dev 1
+
+
+════════════════════════════════════════════════════════════════════════════════
+ROUTES FINALES
+════════════════════════════════════════════════════════════════════════════════
+
+NOUVELLE DEMANDE (Sprint 1 — existant)
+├─ /demandes/nouvelle                    GET        Afficher formulaire
+├─ /demandes/nouvelle                    POST       Soumettre + créer demande
+└─ /demandes/{id}/confirmation           GET        Page confirmation
+
+DUPLICATA (Sprint 2)
+├─ /duplicata/formulaire                 GET        Choix antécédent + recherche + formulaire
+├─ /duplicata/formulaire                 POST       Créer demande DUPLICATA
+└─ /duplicata/{id}/confirmation          GET        Page confirmation
+
+TRANSFERT (Sprint 2)
+├─ /transfert/formulaire                 GET        Choix antécédent + nouveau passeport + formulaire
+├─ /transfert/formulaire                 POST       Créer demande TRANSFERT
+└─ /transfert/{id}/confirmation          GET        Page confirmation
+
+APPROBATION
+├─ /demandes/approbation/{id}            GET        Page approbation
+├─ /demandes/approbation/{id}            POST       Approuver demande NOUVELLE
+
+
+════════════════════════════════════════════════════════════════════════════════
+POINTS DE SYNCHRONISATION CRITIQUES
+════════════════════════════════════════════════════════════════════════════════
+
+✓ Dev 1 livre Visa + CarteResident EN PREMIER
+  → Dev 2 peut commencer recherche + duplicata après
+
+✓ Dev 1 livre approuverDemandeNouvelle()
+  → Dev 2 utilise cette fonction dans creerDuplicata (cas sans antériorité)
+
+✓ Dev 1 livre creerTransfert() + visaService
+  → Integration tests de la chaîne complète : NOUVELLE → approbation auto → TRANSFERT
