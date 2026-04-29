@@ -24,13 +24,16 @@ public class ScanController {
     private final DemandeRepository demandeRepository;
     private final DocumentService documentService;
     private final PieceRepository pieceRepository;
+    private final DemandePieceRepository demandePieceRepository;
 
     public ScanController(DemandeRepository demandeRepository,
-                        DocumentService documentService,
-                        PieceRepository pieceRepository) {
-        this.demandeRepository = demandeRepository;
-        this.documentService = documentService;
-        this.pieceRepository = pieceRepository;
+                      DocumentService documentService,
+                      PieceRepository pieceRepository,
+                      DemandePieceRepository demandePieceRepository) {
+    this.demandeRepository = demandeRepository;
+    this.documentService = documentService;
+    this.pieceRepository = pieceRepository;
+    this.demandePieceRepository = demandePieceRepository;
     }
 
     /**
@@ -94,7 +97,7 @@ public class ScanController {
                 .visa(visaDTO)
                 .documents(documents)
                 .nombreDocumentsFournis(documents.size())
-                .nombreDocumentsAttendus(pieceRepository.findAll().size())
+                .nombreDocumentsAttendus((int) demandePieceRepository.countByDemandeId(id))
                 .dossierVerrouille(dossierVerrouille)
                 .build();
 
@@ -164,6 +167,7 @@ public class ScanController {
                 .visa(visaDTO)
                 .documents(documents)
                 .nombreDocumentsFournis(documents.size())
+                .nombreDocumentsAttendus((int) demandePieceRepository.countByDemandeId(id))
                 .dossierVerrouille("SCAN_TERMINE".equalsIgnoreCase(statut))
                 .build();
 
