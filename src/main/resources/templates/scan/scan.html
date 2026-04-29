@@ -336,7 +336,8 @@
                     <a th:href="@{/documents/{id}/file(id=${doc.id})}"
                        class="btn btn-info" target="_blank">Voir</a>
                     <button th:if="!${scanPage.dossierVerrouille}"
-                            onclick="deleteDocument([[${doc.id}]])"
+                            th:onclick="|deleteDocument(${doc.id})|"
+                            type="button"
                             class="btn btn-danger">Supprimer</button>
                     <button th:if="${scanPage.dossierVerrouille}"
                             class="btn btn-danger" disabled>Supprimer</button>
