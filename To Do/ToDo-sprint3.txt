@@ -1,0 +1,249 @@
+TL    : ETU003350 / HarimalalaEricka
+Dev 1 : ETU003324 / Harenkantou   
+Dev 2 : ETU003366 / vatosoa-wanda   
+
+════════════════════════════════════════════════════════════════════════════════
+SPRINT 3 — SCAN DES PIÈCES + EXPORT PDF (ATTESTATION)
+════════════════════════════════════════════════════════════════════════════════
+
+Objectif :
+- Gérer le scan progressif des pièces justificatives
+- Permettre la validation finale du scan (verrouillage)
+- Générer une attestation PDF regroupant toutes les informations du dossier
+
+════════════════════════════════════════════════════════════════════════════════
+APPROCHE UNIFIÉE : Page unique "Scan + Attestation"
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Page scan des pièces justificatives
+├─ Affichage : /demandes/{id}/scan GET
+│  ├─ Header :
+│  │  • Référence demande
+│  │  • Statut (CREE / SCAN_TERMINE)
+│  │
+│  ├─ Bloc informations :
+│  │  • Etat civil (nom, prénom, date naissance, situation)
+│  │  • Passeport (numéro, dates)
+│  │  • Visa (type, dates, référence)
+│  │
+│  ├─ Tableau pièces justificatives :
+│  │  • Type pièce
+│  │  • Statut : NON FOURNI / FOURNI
+│  │  • Actions :
+│  │      - Upload
+│  │      - Voir
+│  │      - Supprimer
+│  │
+│  ├─ Upload :
+│  │  • Input fichier (pdf, jpg, png)
+│  │  • Support multi-pages (1 PDF ou plusieurs fichiers)
+│  │
+│  ├─ Bloc résumé :
+│  │  • Nombre pièces fournies / attendues
+│  │
+│  └─ Actions :
+│     • Bouton "Terminer le scan"
+│     • Bouton "Exporter attestation PDF"
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Upload et gestion des documents
+├─ Métier : DocumentService
+│  ├─ uploadDocument(DocumentUploadDTO)
+│  │   • Vérifier statut = CREE
+│  │   • Sauvegarder fichier (nom unique)
+│  │   • Enregistrer en base
+│  │
+│  ├─ supprimerDocument(id)
+│  │   • Vérifier statut != SCAN_TERMINE
+│  │
+│  ├─ remplacerDocument(id, fichier)
+│  │   • Vérifier statut != SCAN_TERMINE
+│  │
+│  └─ getDocumentsByDemande(id)
+│
+├─ API :
+│  ├─ POST   /documents
+│  ├─ GET    /documents?demandeId={id}
+│  ├─ DELETE /documents/{id}
+│  └─ PUT    /documents/{id}
+│
+├─ Contraintes :
+│  • Upload en plusieurs sessions autorisé
+│  • Aucun blocage automatique
+│
+├─ Tests :
+│  upload OK
+│  suppression OK
+│  remplacement OK
+│  refus si SCAN_TERMINE
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Validation finale du scan
+├─ Affichage :
+│  ├─ Bouton "Terminer le scan"
+│  │   • Visible si statut = CREE
+│  │   • Désactivé si aucune pièce (option)
+│  │
+│  └─ Popup :
+│     "Après validation, aucune modification ne sera possible"
+│
+├─ Métier : DemandeService
+│  └─ terminerScan(demandeId)
+│     1. Vérifier statut = CREE
+│     2. Vérifier cohérence (option)
+│     3. statut → SCAN_TERMINE
+│     4. Ajouter historique_statut
+│
+├─ API :
+│  └─ POST /demandes/{id}/scan-terminer
+│
+├─ Tests :
+│  statut modifié
+│  double validation interdite
+│
+└─ Responsable : ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Blocage après scan terminé
+├─ Métier :
+│  • Si statut = SCAN_TERMINE :
+│    - interdit upload
+│    - interdit suppression
+│    - interdit modification
+│
+├─ Implémentation :
+│  • Vérification dans services backend
+│
+├─ Frontend :
+│  • Désactiver tous les boutons
+│  • Message : "Dossier verrouillé"
+│
+├─ Tests :
+│  aucune modification possible
+│
+└─ Responsable : ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Visualisation des documents
+├─ Affichage :
+│  • Bouton "Voir"
+│
+├─ Support :
+│  • PDF → viewer
+│  • Image → affichage direct
+│
+├─ API :
+│  • GET /documents/{id}/file
+│
+├─ Tests :
+│  affichage OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Export PDF (Attestation dossier)
+├─ Objectif :
+│  Générer un PDF récapitulatif du dossier
+│
+├─ Contenu PDF :
+│  ├─ Informations demande :
+│  │  • Référence
+│  │  • Statut
+│  │
+│  ├─ Etat civil :
+│  │  • Nom
+│  │  • Prénom
+│  │  • Date naissance
+│  │
+│  ├─ Passeport :
+│  │  • Numéro
+│  │  • Date début / fin
+│  │
+│  ├─ Visa :
+│  │  • Type
+│  │  • Référence
+│  │  • Dates
+│  │
+│  ├─ Pièces justificatives :
+│  │  • Liste des pièces fournies
+│  │
+│  └─ Footer :
+│     • Date génération
+│     • Signature / cachet (option)
+│
+├─ Métier : PdfService
+│  └─ genererAttestation(demandeId)
+│     1. Récupérer toutes les données
+│     2. Construire PDF
+│     3. Retourner fichier
+│
+├─ API :
+│  └─ GET /demandes/{id}/attestation
+│
+├─ Frontend :
+│  • Bouton "Exporter PDF"
+│  • Téléchargement automatique
+│
+├─ Contraintes :
+│  • Disponible même si scan non terminé (option)
+│
+├─ Tests :
+│  PDF généré
+│  données correctes
+│
+└─ Responsable : ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Continuité du scan (reprise)
+├─ Scénario :
+│  • Upload partiel → pause → reprise
+│
+├─ Résultat attendu :
+│  • Données conservées
+│  • Reprise possible
+│
+├─ Tests :
+│  reprise OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+TEST GLOBAL DU SPRINT
+├─ 1. Création demande → CREE
+├─ 2. Upload partiel
+├─ 3. Reconnexion → reprise
+├─ 4. Upload complet
+├─ 5. Preview OK
+├─ 6. Export PDF OK
+├─ 7. Scan terminé
+├─ 8. Vérifier :
+│   • statut = SCAN_TERMINE
+│   • blocage total
+│
+└─ Résultat :
+   ✔ Upload progressif OK
+   ✔ Modification OK avant validation
+   ✔ PDF généré OK
+   ✔ Verrouillage sécurisé OK
+
+════════════════════════════════════════════════════════════════════════════════
+
+RÈGLES MÉTIER IMPORTANTES
+• Upload en plusieurs fois autorisé
+• Validation uniquement via "Terminer le scan"
+• SCAN_TERMINE = verrouillage définitif
+• Export PDF indépendant du statut (configurable)
+• SCAN_TERMINE ≠ VISA APPROUVEE
+
+════════════════════════════════════════════════════════════════════════════════
