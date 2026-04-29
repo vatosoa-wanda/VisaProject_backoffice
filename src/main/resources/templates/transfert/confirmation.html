@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation de transfert de visa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #102a43 0%, #1b4965 50%, #2c7da0 100%);
+            min-height: 100vh;
+            padding: 40px 0;
+        }
+        .confirmation-card {
+            max-width: 900px;
+            margin: 0 auto;
+            border: 0;
+            border-radius: 1.25rem;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .card-header {
+            background: linear-gradient(135deg, #059669, #047857);
+            padding: 1.5rem;
+        }
+        .success-icon {
+            font-size: 64px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .info-value {
+            color: #1f2937;
+        }
+        .badge-transfer {
+            background-color: #fef3c7;
+            color: #d97706;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+        }
+        .btn-custom-primary {
+            background: linear-gradient(135deg, #059669, #047857);
+            border: none;
+            color: white;
+        }
+        .btn-custom-primary:hover {
+            background: linear-gradient(135deg, #047857, #065f46);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card confirmation-card">
+            <div class="card-header text-white text-center">
+                <div class="success-icon mx-auto">
+                    <i class="bi bi-check-lg fs-1"></i>
+                </div>
+                <h2 class="mb-0">Transfert créé avec succès</h2>
+                <p class="mb-0 mt-2 opacity-75">Votre demande a été enregistrée</p>
+            </div>
+            
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <span class="badge-transfer fs-6">
+                        <i class="bi bi-ticket-perforated"></i> 
+                        N° demande : <strong th:text="'#' + ${demande.id}"></strong>
+                    </span>
+                </div>
+
+                <div class="alert alert-info border-0 bg-info bg-opacity-10">
+                    <div class="d-flex">
+                        <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+                        <div>
+                            <strong class="d-block mb-1">📌 Ce qui a été fait :</strong>
+                            <ul class="mb-0 ps-3">
+                                <li>Un nouveau visa a été créé sur votre nouveau passeport</li>
+                                <li>L'ancien visa a été désactivé (date de fin = aujourd'hui)</li>
+                                <li>Votre carte de résident reste valide et inchangée</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mt-4 mb-3 fw-bold">
+                    <i class="bi bi-receipt me-2 text-success"></i>Récapitulatif
+                </h5>
+
+                <div class="row info-row">
+                    <div class="col-md-4 info-label">Date de demande :</div>
+                    <div class="col-md-8 info-value" th:text="${#temporals.format(demande.dateDemande, 'dd/MM/yyyy HH:mm')}"></div>
+                </div>
+                <div class="row info-row">
+                    <div class="col-md-4 info-label">Demandeur :</div>
+                    <div class="col-md-8 info-value" th:text="${demande.nomDemandeur} + ' ' + ${demande.prenomDemandeur}"></div>
+                </div>
+                <div class="row info-row">
+                    <div class="col-md-4 info-label">Type de visa :</div>
+                    <div class="col-md-8 info-value">
+                        <span class="badge bg-primary" th:text="${demande.typeVisa}"></span>
+                    </div>
+                </div>
+                <div class="row info-row">
+                    <div class="col-md-4 info-label">Type de demande :</div>
+                    <div class="col-md-8 info-value">
+                        <span class="badge bg-warning text-dark" th:text="${demande.typeDemande}">TRANSFERT</span>
+                    </div>
+                </div>
+                <div class="row info-row">
+                    <div class="col-md-4 info-label">Statut :</div>
+                    <div class="col-md-8">
+                        <span class="badge bg-secondary" th:text="${demande.statutDemande}"></span>
+                        <small class="text-muted ms-2">En attente d'approbation</small>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="/demandes" class="btn btn-outline-primary">
+                        <i class="bi bi-list-ul"></i> Voir mes demandes
+                    </a>
+                    <a href="/" class="btn btn-custom-primary">
+                        <i class="bi bi-house"></i> Retour à l'accueil
+                    </a>
+                    <button onclick="window.print()" class="btn btn-outline-secondary">
+                        <i class="bi bi-printer"></i> Imprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
