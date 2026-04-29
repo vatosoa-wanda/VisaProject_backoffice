@@ -9,9 +9,8 @@ import java.util.Optional;
 
 @Repository
 public interface DemandeRepository extends JpaRepository<Demande, Long> {
-	List<Demande> findByStatutDemandeLibelleAndTypeDemandeLibelle(String statutLibelle, String typeLibelle);
-
-	Optional<Demande> findFirstByIdDemandeOrigineAndTypeDemandeLibelleAndStatutDemandeLibelle(Long idDemandeOrigine,
-																							  String typeLibelle,
-																							  String statutLibelle);
+    List<Demande> findByIdDemandeOrigineAndTypeDemandeLibelle(Long idDemandeOrigine, String typeDemandeLibelle);
+    List<Demande> findByStatutDemandeLibelleAndTypeDemandeLibelle(String statutLibelle, String typeLibelle);
+    Optional<Demande> findFirstByIdDemandeOrigineAndTypeDemandeLibelleAndStatutDemandeLibelle(
+        Long idDemandeOrigine, String typeDemandeLibelle, String statutDemandeLibelle);
 }

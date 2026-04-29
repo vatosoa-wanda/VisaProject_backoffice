@@ -20,6 +20,10 @@
         .alert-error {
             color: #d32f2f;
         }
+        .readonly-field {
+            background-color: #e9ecef;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -53,14 +57,15 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
-    <!-- Étape 1 : choix antécédent -->
+    <!-- Étape 1 : choix antécédent - LIENS DYNAMIQUES -->
     <div th:if="${modeAvecAntecedent == false && modeSansAntecedent == false}" class="card mb-4 border-0 shadow-sm">
         <div class="card-body">
             <h2 class="h4 mb-3">Avez-vous déjà une demande approuvée ?</h2>
             <p class="text-muted mb-3">Choisissez si vous voulez rechercher un dossier existant ou remplir un dossier complet.</p>
-            <div class="d-flex gap-2 flex-wrap">
-                <a class="btn btn-primary" th:href="@{/duplicata/formulaire(avecAntecedent=true)}">AVEC</a>
-                <a class="btn btn-outline-secondary" th:href="@{/duplicata/formulaire(avecAntecedent=false)}">SANS</a>
+            <div class="d-flex gap-2 flex-wrap" id="choixAntecedentContainer">
+                <!-- Les liens seront générés dynamiquement par JavaScript -->
+                <button type="button" class="btn btn-primary" id="btnAvec">AVEC</button>
+                <button type="button" class="btn btn-outline-secondary" id="btnSans">SANS</button>
             </div>
         </div>
     </div>
@@ -69,7 +74,7 @@
     <div th:if="${afficherRecherche}" class="card mb-4 border-0 shadow-sm">
         <div class="card-body">
             <h2 class="h4 mb-3">Recherche dossier approuvé</h2>
-            <form th:action="@{/duplicata/formulaire}" method="get" class="row g-3">
+            <form th:action="@{${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT'} ? '/transfert/formulaire' : '/duplicata/formulaire'}" method="get" class="row g-3">
                 <input type="hidden" name="avecAntecedent" value="true">
                 <input type="hidden" name="rechercher" value="true">
                 <div class="col-md-4">
@@ -86,7 +91,7 @@
                 </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary">Rechercher</button>
-                    <a class="btn btn-link" th:href="@{/duplicata/formulaire(avecAntecedent=true)}">Réinitialiser</a>
+                    <a class="btn btn-link" th:href="@{${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT'} ? '/transfert/formulaire(avecAntecedent=true)' : '/duplicata/formulaire(avecAntecedent=true)'}">Réinitialiser</a>
                 </div>
             </form>
 
@@ -112,7 +117,10 @@
                             <td th:text="${r.numeroPasSeport}"></td>
                             <td th:text="${r.referenceVisa}"></td>
                             <td>
-                                <a class="btn btn-sm btn-success" th:href="@{/duplicata/formulaire(idDemandeOrigine=${r.id}, avecAntecedent=true)}">Continuer →</a>
+                                <a class="btn btn-sm btn-success" 
+                                   th:href="@{${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT'} ? '/transfert/formulaire' : '/duplicata/formulaire' (idDemandeOrigine=${r.id}, avecAntecedent=true)}">
+                                    Continuer →
+                                </a>
                             </td>
                         </tr>
                         </tbody>
@@ -172,7 +180,7 @@
     </div>
 
     <!-- Bloc VISA TRANSFORMABLE (lecture seule) si DUPLICATA avec antécédent -->
-    <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true && demandeForm.idDemandeOrigine != null}"
+    <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true && demandeForm.idDemandeOrigine != null && demandeForm.typeDemande == 'DUPLICATA'}"
          class="mb-4 p-3 bg-light rounded">
         <h3>Visa transformable existant (lecture seule)</h3>
         <div class="row">
@@ -197,25 +205,9 @@
         </div>
     </div>
 
-    <!-- Bloc ANCIEN VISA (READ-ONLY) si TRANSFERT -->
-    <div th:if="${demandeForm != null && demandeForm.avecAntecedent == true && demandeForm.idDemandeOrigine != null && demandeForm.typeDemande == 'TRANSFERT'}"
-         class="mb-4 p-3 bg-light rounded">
-        <h3>Visa existant (lecture seule)</h3>
-        <div class="row">
-            <div class="col-md-6">
-                <p><strong>Référence :</strong> <span th:text="${demandeForm.visaDTO?.referenceVisa}"></span></p>
-            </div>
-            <div class="col-md-6">
-                <p><strong>Date début :</strong>
-                   <span th:text="${#temporals.format(demandeForm.visaDTO?.dateDebut, 'dd/MM/yyyy')}"></span>
-                </p>
-            </div>
-        </div>
-    </div>
-
-        <form th:if="${modeSansAntecedent == true || demandeForm == null || demandeForm.typeDemande == null || (demandeForm != null && demandeForm.idDemandeOrigine != null)}"
-            th:action="${formAction != null ? formAction : '/demandes/nouvelle'}"
-            th:object="${demandeForm}" method="post" novalidate>
+    <form th:if="${modeSansAntecedent == true || demandeForm == null || demandeForm.typeDemande == null || (demandeForm != null && demandeForm.idDemandeOrigine != null)}"
+        th:action="${formAction != null ? formAction : '/demandes/nouvelle'}"
+        th:object="${demandeForm}" method="post" novalidate>
 
          <!-- Champs cachés pour le flux DUPLICATA/TRANSFERT avec antécédent -->
          <input type="hidden" th:if="${demandeForm != null && demandeForm.avecAntecedent != null}"
@@ -224,23 +216,23 @@
              th:field="*{idDemandeOrigine}">
          <input type="hidden" th:if="${demandeForm != null && demandeForm.typeDemande != null}"
              th:field="*{typeDemande}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nom}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.prenom}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nomJeuneFille}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.dateNaissance}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.lieuNaissance}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idSituationFamiliale}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idNationalite}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.adresseMadagascar}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.telephone}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.email}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.numero}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateDelivrance}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateExpiration}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.referenceVisa}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateEntree}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.lieuEntree}">
-             <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateExpiration}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nom}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.prenom}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nomJeuneFille}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.dateNaissance}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.lieuNaissance}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idSituationFamiliale}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idNationalite}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.adresseMadagascar}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.telephone}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.email}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.numero}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateDelivrance}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateExpiration}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.referenceVisa}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateEntree}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.lieuEntree}">
+         <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateExpiration}">
 
         <!-- Blocs du formulaire — affichés si NOUVELLE ou (DUPLICATA/TRANSFERT sans antécédent) -->
         <div th:if="${demandeForm == null || demandeForm.avecAntecedent != true}">
@@ -482,22 +474,23 @@
         </div>
 
         <!-- Pièces spécifiques : affichées côté serveur (sans JavaScript) -->
-        <h4 style="margin-top: 20px;">Pièces spécifiques</h4>
-        <div id="pieces-specifiques">
-            <div th:if="${piecesSpecifiques == null or piecesSpecifiques.isEmpty()}" class="text-muted">
-                Sélectionnez un type de visa puis cliquez sur « Mettre à jour les pièces spécifiques ».
-            </div>
-            <div th:if="${piecesSpecifiques != null and !piecesSpecifiques.isEmpty()}">
-                      <div th:each="piece : ${piecesSpecifiques}" class="form-check">
-                      <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'spec_piece_' + ${piece.id}"
-                          th:checked="${(demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)) or (piece.obligatoire and (demandeForm == null or demandeForm.piecesFournies == null))}">
-                    <label class="form-check-label" th:for="'spec_piece_' + ${piece.id}">
-                        <span th:text="${piece.nom}"></span>
-                        <span th:if="${piece.obligatoire}" class="badge-obligatoire"> *</span>
-                    </label>
-                </div>
-            </div>
+        <!-- Pièces spécifiques : affichées côté serveur (sans JavaScript) -->
+<h4 style="margin-top: 20px;">Pièces spécifiques</h4>
+<div id="pieces-specifiques">
+    <div th:if="${piecesSpecifiques == null or piecesSpecifiques.isEmpty()}" class="text-muted">
+        Sélectionnez un type de visa pour voir les pièces spécifiques.
+    </div>
+    <div th:if="${piecesSpecifiques != null and !piecesSpecifiques.isEmpty()}">
+        <div th:each="piece : ${piecesSpecifiques}" class="form-check">
+            <input class="form-check-input" type="checkbox" name="piecesFournies" th:value="${piece.id}" th:id="'spec_piece_' + ${piece.id}"
+                th:checked="${(demandeForm != null && demandeForm.piecesFournies != null && demandeForm.piecesFournies.contains(piece.id)) or (piece.obligatoire and (demandeForm == null or demandeForm.piecesFournies == null))}">
+            <label class="form-check-label" th:for="'spec_piece_' + ${piece.id}">
+                <span th:text="${piece.nom}"></span>
+                <span th:if="${piece.obligatoire}" class="text-danger"> *</span>
+            </label>
         </div>
+    </div>
+</div>
 
         <div class="mt-3">
             <button type="submit" class="btn btn-outline-secondary" name="refreshPieces" value="true">
@@ -517,26 +510,157 @@
 </div>
 
 <script>
-// Validation pour TRANSFERT : numéro nouveau passeport ≠ ancien
+// Script pour le chargement dynamique des pièces spécifiques
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    if (!form) return;
-
-    const typeDemande = form.querySelector('[name*="typeDemande"]')?.value || '';
-    if (typeDemande !== 'TRANSFERT') return;
-
-    const numeroAncien = form.querySelector('[id="numeroPasSeport"]')?.value || '';
-    const form_submit = form.querySelector('button[type="submit"]');
-
-    form.addEventListener('submit', function(e) {
-        const numeroNouveau = form.querySelector('[name="passeportNouveauDTO.numero"]')?.value || '';
-
-        if (numeroNouveau === numeroAncien && numeroNouveau !== '') {
-            e.preventDefault();
-            alert('Le numéro du nouveau passeport doit être différent de l\'ancien.');
-            return false;
+    // Déterminer le type de demande depuis l'URL ou depuis le champ caché
+    const pathname = window.location.pathname;
+    const typeInput = document.querySelector('input[name="typeDemande"]');
+    let typeDemande = typeInput ? typeInput.value : '';
+    
+    // Si pas de typeDemande dans le champ, déduire de l'URL
+    if (!typeDemande) {
+        if (pathname.includes('/transfert/')) {
+            typeDemande = 'TRANSFERT';
+        } else if (pathname.includes('/duplicata/')) {
+            typeDemande = 'DUPLICATA';
+        } else {
+            typeDemande = 'NOUVELLE';
         }
-    });
+    }
+    
+    // Configurer les URLs dynamiques pour AVEC/SANS
+    let baseUrlAvec = '';
+    let baseUrlSans = '';
+    
+    if (typeDemande === 'TRANSFERT') {
+        baseUrlAvec = '/transfert/formulaire?avecAntecedent=true';
+        baseUrlSans = '/transfert/formulaire?avecAntecedent=false';
+    } else if (typeDemande === 'DUPLICATA') {
+        baseUrlAvec = '/duplicata/formulaire?avecAntecedent=true';
+        baseUrlSans = '/duplicata/formulaire?avecAntecedent=false';
+    } else {
+        baseUrlAvec = '/demandes/nouvelle';
+        baseUrlSans = '/demandes/nouvelle';
+    }
+    
+    // Remplacer les boutons par des liens
+    const btnAvec = document.getElementById('btnAvec');
+    const btnSans = document.getElementById('btnSans');
+    const container = document.getElementById('choixAntecedentContainer');
+    
+    if (btnAvec && btnSans && container) {
+        container.innerHTML = `
+            <a class="btn btn-primary" href="${baseUrlAvec}">AVEC</a>
+            <a class="btn btn-outline-secondary" href="${baseUrlSans}">SANS</a>
+        `;
+    }
+    
+    // ========== NOUVEAU : Chargement automatique des pièces spécifiques ==========
+    const typeVisaSelect = document.getElementById('typeVisa');
+    const piecesSpecifiquesDiv = document.getElementById('pieces-specifiques');
+    const noSpecificDiv = document.getElementById('noSpecificPieces');
+    
+    // Fonction pour charger les pièces spécifiques
+    function chargerPiecesSpecifiques(idTypeVisa) {
+        if (!idTypeVisa) {
+            if (piecesSpecifiquesDiv) piecesSpecifiquesDiv.innerHTML = '<div class="text-muted">Sélectionnez un type de visa pour voir les pièces spécifiques.</div>';
+            return;
+        }
+        
+        // Déterminer l'URL de base selon le type de demande
+        let baseUrl = '';
+        if (typeDemande === 'TRANSFERT') {
+            baseUrl = '/transfert/pieces';
+        } else if (typeDemande === 'DUPLICATA') {
+            baseUrl = '/duplicata/pieces';
+        } else {
+            baseUrl = '/demandes/pieces';
+        }
+        
+        // Afficher un indicateur de chargement
+        if (piecesSpecifiquesDiv) {
+            piecesSpecifiquesDiv.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Chargement des pièces spécifiques...</div>';
+        }
+        
+        // Appel AJAX
+        fetch(baseUrl + '?idTypeVisa=' + idTypeVisa)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    let html = '<hr/><h6>Pièces spécifiques</h6>';
+                    data.forEach(piece => {
+                        html += '<div class="form-check">';
+                        html += '<input class="form-check-input" type="checkbox" name="piecesFournies" value="' + piece.id + '" id="spec_piece_' + piece.id + '"';
+                        if (piece.obligatoire) {
+                            html += ' checked';
+                        }
+                        html += '>';
+                        html += '<label class="form-check-label" for="spec_piece_' + piece.id + '">';
+                        html += piece.nom;
+                        if (piece.obligatoire) {
+                            html += ' <span class="text-danger">*</span>';
+                        }
+                        html += '</label></div>';
+                    });
+                    if (piecesSpecifiquesDiv) {
+                        piecesSpecifiquesDiv.innerHTML = html;
+                    }
+                    if (noSpecificDiv) noSpecificDiv.style.display = 'none';
+                } else {
+                    if (piecesSpecifiquesDiv) {
+                        piecesSpecifiquesDiv.innerHTML = '<div class="text-muted">Aucune pièce spécifique requise pour ce type de visa.</div>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des pièces:', error);
+                if (piecesSpecifiquesDiv) {
+                    piecesSpecifiquesDiv.innerHTML = '<div class="text-danger">Erreur lors du chargement des pièces spécifiques.</div>';
+                }
+            });
+    }
+    
+    // Écouter le changement du select typeVisa
+    if (typeVisaSelect) {
+        // Charger au chargement de la page si une valeur est déjà sélectionnée
+        if (typeVisaSelect.value) {
+            chargerPiecesSpecifiques(typeVisaSelect.value);
+        }
+        
+        // Charger lors du changement
+        typeVisaSelect.addEventListener('change', function() {
+            chargerPiecesSpecifiques(this.value);
+        });
+    }
+    
+    // Validation pour TRANSFERT : numéro nouveau passeport ≠ ancien
+    if (typeDemande === 'TRANSFERT') {
+        const form = document.querySelector('form');
+        if (form) {
+            const numeroAncienInput = document.querySelector('#numeroPasSeport') || 
+                                      document.querySelector('input[name="passeportDTO.numero"]');
+            const numeroAncien = numeroAncienInput ? numeroAncienInput.value : '';
+            
+            form.addEventListener('submit', function(e) {
+                const numeroNouveauInput = document.querySelector('input[name="passeportNouveauDTO.numero"]');
+                const numeroNouveau = numeroNouveauInput ? numeroNouveauInput.value : '';
+                
+                if (numeroNouveau && numeroNouveau === numeroAncien && numeroAncien !== '') {
+                    e.preventDefault();
+                    alert('⚠️ Le numéro du nouveau passeport doit être différent de l\'ancien passeport.');
+                    numeroNouveauInput.focus();
+                    return false;
+                }
+                
+                if (typeDemande === 'TRANSFERT' && (!numeroNouveau || numeroNouveau === '')) {
+                    e.preventDefault();
+                    alert('⚠️ Veuillez saisir le numéro du nouveau passeport.');
+                    numeroNouveauInput.focus();
+                    return false;
+                }
+            });
+        }
+    }
 });
 </script>
 
