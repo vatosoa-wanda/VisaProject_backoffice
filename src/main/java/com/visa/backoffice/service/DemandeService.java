@@ -9,6 +9,7 @@ import com.visa.backoffice.dto.DuplicataCreateDTO;
 import com.visa.backoffice.dto.PasseportDTO;
 import com.visa.backoffice.dto.PieceDTO;
 import com.visa.backoffice.dto.TransfertCreateDTO;
+import com.visa.backoffice.dto.VisaDTO;
 import com.visa.backoffice.dto.VisaTransformableDTO;
 import com.visa.backoffice.exception.BusinessException;
 import com.visa.backoffice.exception.DemandeVerrouilleException;
@@ -398,6 +399,10 @@ public class DemandeService {
      * @throws BusinessException if statut != CREE or typeDemande != NOUVELLE
      */
     public void approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique) {
+        approuverDemandeNouvelle(idDemande, commentaire, automatique, null);
+    }
+
+    public void approuverDemandeNouvelle(Long idDemande, String commentaire, boolean automatique, VisaDTO visaCreationDTO) {
         Demande demande = demandeRepository.findById(idDemande)
                 .orElseThrow(() -> new ResourceNotFoundException("Demande introuvable : id=" + idDemande));
 
@@ -425,7 +430,7 @@ public class DemandeService {
             throw new BusinessException("Passeport introuvable sur la demande");
         }
 
-        visaService.creer(demande, passeport);
+        visaService.creer(demande, passeport, visaCreationDTO);
         carteResidentService.creer(demande, passeport);
     }
 
@@ -669,12 +674,79 @@ private String genererReferenceVisa(String prefixe) {
      */
     @Transactional
     public DemandeResponseDTO creerTransfertSansAntecedent(Long idDemandeOrigine, PasseportDTO nouveauPasseportDTO, List<Long> piecesFournies) {
-        TransfertCreateDTO dto = TransfertCreateDTO.builder()
-                .idDemandeOrigine(idDemandeOrigine)
-                .passeportNouveau(nouveauPasseportDTO)
-                .piecesFournies(piecesFournies)
-                .build();
-        return creerTransfert(dto);
+        Demande demandeOrigine = demandeRepository.findById(idDemandeOrigine)
+                .orElseThrow(() -> new BusinessException("Demande origine non trouvée"));
+
+        if (demandeOrigine.getStatutDemande() == null || !"APPROUVEE".equalsIgnoreCase(demandeOrigine.getStatutDemande().getLibelle())) {
+            throw new BusinessException("La demande origine doit être APPROUVEE");
+        }
+
+        if (demandeOrigine.getTypeDemande() == null || !"NOUVELLE".equalsIgnoreCase(demandeOrigine.getTypeDemande().getLibelle())) {
+            throw new BusinessException("La demande origine doit être de type NOUVELLE");
+        }
+
+        List<Demande> transfertsExistants = demandeRepository.findByIdDemandeOrigineAndTypeDemandeLibelle(idDemandeOrigine, "TRANSFERT");
+        boolean aTransfertActif = transfertsExistants.stream()
+                .anyMatch(d -> d.getStatutDemande() != null
+                        && ("CREE".equalsIgnoreCase(d.getStatutDemande().getLibelle())
+                        || "APPROUVEE".equalsIgnoreCase(d.getStatutDemande().getLibelle())));
+        if (aTransfertActif) {
+            throw new BusinessException("Un transfert actif existe déjà pour cette demande");
+        }
+
+        if (demandeOrigine.getVisaTransformable() == null || demandeOrigine.getVisaTransformable().getPasseport() == null) {
+            throw new BusinessException("Ancien passeport introuvable sur la demande origine");
+        }
+
+        Passeport ancienPasseport = demandeOrigine.getVisaTransformable().getPasseport();
+        if (ancienPasseport.getNumero() == null) {
+            throw new BusinessException("Ancien passeport invalide sur la demande origine");
+        }
+
+        if (nouveauPasseportDTO == null || nouveauPasseportDTO.getNumero() == null || nouveauPasseportDTO.getNumero().isBlank()) {
+            throw new BusinessException("Les informations du nouveau passeport sont obligatoires");
+        }
+        if (ancienPasseport.getNumero().equals(nouveauPasseportDTO.getNumero())) {
+            throw new BusinessException("Le nouveau passeport doit avoir un numéro différent de l'ancien");
+        }
+        if (passeportRepository.findByNumero(nouveauPasseportDTO.getNumero()).isPresent()) {
+            throw new BusinessException("Un passeport avec le numéro " + nouveauPasseportDTO.getNumero() + " existe déjà");
+        }
+
+        Passeport nouveauPasseport = new Passeport();
+        nouveauPasseport.setNumero(nouveauPasseportDTO.getNumero());
+        nouveauPasseport.setDateDelivrance(nouveauPasseportDTO.getDateDelivrance());
+        nouveauPasseport.setDateExpiration(nouveauPasseportDTO.getDateExpiration());
+        nouveauPasseport.setDemandeur(demandeOrigine.getDemandeur());
+        nouveauPasseport = passeportRepository.save(nouveauPasseport);
+
+        TypeDemande typeTransfert = typeDemandeRepository.findByLibelle("TRANSFERT")
+                .orElseThrow(() -> new BusinessException("Type demande TRANSFERT non trouvé"));
+        StatutDemande statutCree = statutDemandeRepository.findByLibelle("CREE")
+                .orElseThrow(() -> new BusinessException("Statut CREE non trouvé"));
+
+        Demande demandeTransfert = new Demande();
+        demandeTransfert.setDateDemande(LocalDateTime.now());
+        demandeTransfert.setDemandeur(demandeOrigine.getDemandeur());
+        demandeTransfert.setVisaTransformable(null);
+        demandeTransfert.setTypeVisa(demandeOrigine.getTypeVisa());
+        demandeTransfert.setTypeDemande(typeTransfert);
+        demandeTransfert.setStatutDemande(statutCree);
+        demandeTransfert.setIdDemandeOrigine(demandeOrigine.getId());
+        demandeTransfert = demandeRepository.save(demandeTransfert);
+
+        lierPiecesADemande(demandeTransfert, piecesFournies, demandeOrigine.getTypeVisa());
+        creerHistoriqueStatut(demandeTransfert, statutCree, "Demande de transfert créée depuis origine id=" + demandeOrigine.getId());
+
+        VisaPasseport visaAssocie = visaPasseportService.findAnyVisaByDemandeId(demandeOrigine.getId());
+        if (visaAssocie == null) {
+            throw new BusinessException("Aucun visa trouvé pour la demande origine");
+        }
+
+        visaPasseportService.creer(visaAssocie.getVisa(), nouveauPasseport, demandeTransfert);
+
+        com.visa.backoffice.model.Demande demandeFinal = demandeRepository.findById(demandeTransfert.getId()).orElseThrow();
+        return demandeMapper.toResponseDTO(demandeFinal);
     }
 
     /**

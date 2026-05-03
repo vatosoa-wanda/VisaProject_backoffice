@@ -40,7 +40,7 @@
         <!-- Bannière pour cas sans antécédent -->
         <div th:if="${demandeForm.avecAntecedent == false}"
              class="alert alert-info mb-4">
-            <strong>Étape 1/2 — dossier sera approuvé automatiquement</strong>
+            <strong>Étape 1/2 — dossier approuvé automatiquement, puis transfert du visa</strong>
         </div>
     </div>
 
@@ -304,6 +304,21 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Date expiration <span class="badge-obligatoire">*</span></label>
                     <input type="date" class="form-control" th:field="*{passeportNouveauDTO.dateExpiration}" required>
+                </div>
+            </div>
+
+            <div class="section-header bg-light mt-4">
+                <h2>🧾 Visa à transférer <span class="badge-obligatoire">*</span></h2>
+                <p class="text-muted">Saisir les informations du visa qui sera transféré sur le nouveau passeport.</p>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date début <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{visaTransferDTO.dateDebut}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date fin <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{visaTransferDTO.dateFin}" required>
                 </div>
             </div>
         </div>

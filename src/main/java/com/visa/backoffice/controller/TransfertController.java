@@ -134,6 +134,24 @@ public class TransfertController {
                 hasRealErrors = true;
                 model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
             }
+            if (dto.getVisaTransferDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du visa à transférer sont obligatoires");
+            } else {
+                if (dto.getVisaTransferDTO().getDateDebut() == null) {
+                    hasRealErrors = true;
+                    model.addAttribute("errorMessage", "La date de début du visa à transférer est obligatoire");
+                }
+                if (dto.getVisaTransferDTO().getDateFin() == null) {
+                    hasRealErrors = true;
+                    model.addAttribute("errorMessage", "La date de fin du visa à transférer est obligatoire");
+                }
+                if (dto.getVisaTransferDTO().getDateDebut() != null && dto.getVisaTransferDTO().getDateFin() != null
+                        && dto.getVisaTransferDTO().getDateFin().isBefore(dto.getVisaTransferDTO().getDateDebut())) {
+                    hasRealErrors = true;
+                    model.addAttribute("errorMessage", "La date de fin du visa doit être postérieure à la date de début");
+                }
+            }
             if (dto.getIdTypeVisa() == null) {
                 hasRealErrors = true;
                 model.addAttribute("errorMessage", "Le type de visa est obligatoire");
@@ -213,7 +231,7 @@ public class TransfertController {
                 System.out.println("   → Demande NOUVELLE ID: " + nouvelleDemande.getId());
                 
                 System.out.println("2. Approbation automatique...");
-                demandeService.approuverDemandeNouvelle(nouvelleDemande.getId(), null, true);
+                demandeService.approuverDemandeNouvelle(nouvelleDemande.getId(), null, true, dto.getVisaTransferDTO());
                 System.out.println("   → Demande approuvée avec succès");
                 
                 System.out.println("3. Création du TRANSFERT...");

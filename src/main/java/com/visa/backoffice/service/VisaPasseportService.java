@@ -127,4 +127,15 @@ public class VisaPasseportService {
                 .findFirst()
                 .orElse(null);
     }
+
+    /**
+     * Récupère le premier visa associé à une demande, sans filtre sur la date de fin.
+     * Utile quand le visa possède déjà une date de fin saisie au formulaire.
+     */
+    public VisaPasseport findAnyVisaByDemandeId(Long idDemande) {
+        List<VisaPasseport> associations = findByDemandeId(idDemande);
+        return associations.stream()
+                .findFirst()
+                .orElse(null);
+    }
 }

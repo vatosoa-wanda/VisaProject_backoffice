@@ -5,6 +5,7 @@ import com.visa.backoffice.model.Demande;
 import com.visa.backoffice.model.Passeport;
 import com.visa.backoffice.model.Visa;
 import com.visa.backoffice.model.VisaPasseport;
+import com.visa.backoffice.dto.VisaDTO;
 import com.visa.backoffice.repository.VisaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,31 @@ public class VisaService {
         // Créer l'association dans visa_passeport
         visaPasseportService.creer(savedVisa, passeport, demande);
 
+        return savedVisa;
+    }
+
+    /**
+     * Crée un visa à partir des informations saisies pour un transfert sans antécédent.
+     * Les dates sont imposées par le formulaire.
+     */
+    public Visa creer(Demande demande, Passeport passeport, VisaDTO visaDTO) {
+        if (visaDTO == null) {
+            return creer(demande, passeport);
+        }
+        if (visaDTO.getDateDebut() == null || visaDTO.getDateFin() == null) {
+            throw new BusinessException("Les dates du visa à transférer sont obligatoires");
+        }
+        if (visaDTO.getDateFin().isBefore(visaDTO.getDateDebut())) {
+            throw new BusinessException("La date de fin du visa doit être postérieure à la date de début");
+        }
+
+        Visa visa = new Visa();
+        visa.setReferenceVisa("VISA-" + LocalDateTime.now().toString().replace(':', '-').replace('.', '-'));
+        visa.setDateDebut(visaDTO.getDateDebut());
+        visa.setDateFin(visaDTO.getDateFin());
+        Visa savedVisa = visaRepository.save(visa);
+
+        visaPasseportService.creer(savedVisa, passeport, demande);
         return savedVisa;
     }
 

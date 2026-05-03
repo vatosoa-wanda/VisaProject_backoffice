@@ -50,4 +50,8 @@ public class DemandeCreateDTO {
     // ── Nouveau passeport pour TRANSFERT ───────────────────────
     @Valid
     private PasseportDTO passeportNouveauDTO;   // Pour TRANSFERT
+
+    // ── Visa à transférer pour TRANSFERT sans antécédent ───────
+    @Valid
+    private VisaDTO visaTransferDTO;
 }
