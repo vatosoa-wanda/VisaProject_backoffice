@@ -1,0 +1,271 @@
+TL    : ETU003324 / Harenkantou
+Dev 1 : ETU003350
+Dev 2 : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+SPRINT 4 — FRONTEND VUE.JS + CONSOMMATION API + QR CODE
+════════════════════════════════════════════════════════════════════════════════
+
+Objectif :
+
+Créer une application frontend avec Vue.js
+Consommer les API REST du backend Spring Boot
+Implémenter la recherche et le suivi des demandes
+Générer un QR Code pour accès rapide au suivi
+
+════════════════════════════════════════════════════════════════════════════════
+ARCHITECTURE VUE PROPOSÉE
+════════════════════════════════════════════════════════════════════════════════
+
+Structure du projet :
+
+src/
+├── assets/
+├── components/
+│   ├── DemandeList.vue
+│   ├── DemandeForm.vue
+│   ├── SearchBar.vue
+│   └── QRCodeDisplay.vue
+│
+├── views/
+│   ├── HomeView.vue
+│   ├── CreateDemandeView.vue
+│   └── SuiviDemandeView.vue
+│
+├── services/
+│   └── api.js
+│
+├── router/
+│   └── index.js
+│
+├── models/
+│   └── demande.js
+│
+└── App.vue
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Initialisation projet Vue.js
+├─ Métier :
+│ ├─ Création projet :
+│ │ npm create vue@latest
+│ │
+│ ├─ Choix :
+│ │ • Vue 3
+│ │ • Vue Router ✅
+│ │ • Pinia (optionnel)
+│ │
+│ ├─ Installation dépendances :
+│ │ npm install axios qrcode.vue
+│
+│ ├─ Configuration :
+│ │ • baseURL API (ex: http://localhost:8080
+)
+│
+├─ Résultat :
+│ • Projet fonctionnel lancé avec npm run dev
+│
+└─ Responsable : TL / ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Configuration Vue Router
+├─ Métier :
+│ ├─ Définition routes :
+│ │ • / → HomeView
+│ │ • /create → CreateDemandeView
+│ │ • /demandes/:id → SuiviDemandeView
+│
+│ ├─ Navigation entre pages
+│
+├─ Tests :
+│ • navigation OK
+│
+└─ Responsable : ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Service API (axios)
+├─ Métier :
+│ ├─ Création fichier services/api.js
+│
+│ ├─ Configuration axios :
+│ │ • baseURL
+│ │ • interceptors (optionnel)
+│
+│ ├─ Méthodes :
+│ │ • getDemandes()
+│ │ • rechercherParNumero(numero)
+│ │ • rechercherParPasseport(numero)
+│ │ • getDemandeById(id)
+│ │ • creerDemande(data)
+│
+├─ API :
+│ • GET /demandes
+│ • GET /demandes/{id}
+│ • POST /demandes
+│
+├─ Tests :
+│ • appels API OK
+│
+└─ Responsable : ETU003350
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Composant SearchBar.vue
+├─ Affichage :
+│ ├─ Input :
+│ │ • numéro demande ou passeport
+│ │
+│ ├─ Bouton "Rechercher"
+│
+├─ Métier :
+│ ├─ v-model pour input
+│ ├─ emit event → parent
+│
+├─ Tests :
+│ • saisie OK
+│ • event envoyé OK
+│
+└─ Responsable : ETU003350
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Liste des demandes (DemandeList.vue)
+├─ Affichage :
+│ ├─ Tableau :
+│ │ • Numéro
+│ │ • Nom
+│ │ • Type
+│ │ • Statut
+│ │ • Date
+│
+│ └─ Tri :
+│ • ordre chronologique (desc)
+│
+├─ Métier :
+│ ├─ props : liste demandes
+│ ├─ tri via computed()
+│
+├─ Tests :
+│ • affichage OK
+│ • tri OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Page HomeView (Recherche + Liste)
+├─ Affichage :
+│ ├─ SearchBar
+│ ├─ DemandeList
+│
+├─ Métier :
+│ ├─ appel API recherche
+│ ├─ gestion state (reactive/ref)
+│
+├─ UX :
+│ • message "aucun résultat"
+│
+├─ Tests :
+│ • recherche OK
+│ • affichage OK
+│
+└─ Responsable : ETU003350
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Création demande (DemandeForm.vue)
+├─ Affichage :
+│ ├─ Formulaire :
+│ │ • Nom
+│ │ • Prénom
+│ │ • Passeport
+│ │ • Type visa
+│
+│ └─ Bouton "Créer"
+│
+├─ Métier :
+│ ├─ v-model
+│ ├─ submit → API
+│
+├─ Tests :
+│ • envoi OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Page CreateDemandeView
+├─ Métier :
+│ ├─ utilise DemandeForm
+│ ├─ appel creerDemande()
+│ ├─ récupération ID créé
+│
+│ ├─ redirection :
+│ │ → /demandes/{id}
+│
+├─ Tests :
+│ • création + redirection OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Génération QR Code (QRCodeDisplay.vue)
+├─ Métier :
+│ ├─ Utilisation librairie qrcode.vue
+│
+│ ├─ Props :
+│ │ • url
+│
+│ ├─ Génération :
+│ │ • http://localhost:5173/demandes/{id}
+
+│
+├─ Affichage :
+│ ├─ QR Code
+│ └─ bouton téléchargement (option)
+│
+├─ Tests :
+│ • QR affiché
+│ • scan OK
+│
+└─ Responsable : ETU003350
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Page SuiviDemandeView
+├─ Route :
+│ • /demandes/:id
+│
+├─ Affichage :
+│ ├─ Infos demande :
+│ │ • numéro
+│ │ • statut
+│ │ • date
+│
+│ ├─ QR Code
+│
+├─ Métier :
+│ ├─ useRoute()
+│ ├─ appel getDemandeById()
+│
+├─ Tests :
+│ • affichage OK
+│
+└─ Responsable : ETU003366
+
+════════════════════════════════════════════════════════════════════════════════
+
+Tache : Gestion état (optionnel Pinia)
+├─ Métier :
+│ ├─ store demandes
+│ ├─ centraliser données API
+│
+├─ Tests :
+│ • state partagé OK
+│
+└─ Responsable : ETU003324
+
+════════════════════════════════════════════════════════════════════════════════
