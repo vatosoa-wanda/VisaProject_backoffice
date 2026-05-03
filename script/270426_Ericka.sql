@@ -1,15 +1,20 @@
 -- Seed de test ETU003350 - cas AVEC antécédent
 -- Objectif : fournir un dossier complet déjà APPROUVÉ pour tester la recherche et la création d'un duplicata.
 -- Ce script simule le cas "AVEC antécédent" du sprint 2.
--- En le chargeant après script/240426.sql, tu obtiens une base avec :
+-- En le chargeant après script/240426.sql et script/241005_refactor_visa_relation.sql, tu obtiens une base avec :
 --   - 1 demandeur
 --   - 1 passeport
 --   - 1 visa_transformable
 --   - 1 demande de type NOUVELLE et statut APPROUVEE
 --   - 1 historique_statut APPROUVEE
---   - 1 visa actif
+--   - 1 visa actif lié via la table visa_passeport
 --   - 1 carte_resident active
 -- Ces données servent à tester la recherche d'une demande approuvée, puis la création d'un duplicata.
+-- 
+-- IMPORTANT: Exécuter dans cet ordre:
+--   1. script/240426.sql
+--   2. script/241005_refactor_visa_relation.sql (migration visa -> visa_passeport)
+--   3. script/270426_Ericka.sql (données de test)
 
 -- TABLE demandeur : identité du titulaire du dossier
 INSERT INTO demandeur (id, nom, prenom, nom_jeune_fille, date_naissance, lieu_naissance, id_situation_familiale, id_nationalite, profession, adresse_madagascar, telephone, email)
@@ -36,9 +41,13 @@ VALUES (4001, CURRENT_TIMESTAMP, 1001, 3001, 1, 1, 3, NULL);
 INSERT INTO historique_statut (id, id_demande, id_statut_demande, date_changement, commentaire)
 VALUES (5001, 4001, 3, CURRENT_TIMESTAMP, 'Approbation de test');
 
--- TABLE visa : visa actif qui doit rester inchangé pendant le duplicata
-INSERT INTO visa (id, reference_visa, date_debut, date_fin, id_passeport, id_demande)
-VALUES (6001, 'VISA-ACTIF-001', CURRENT_DATE, NULL, 2001, 4001);
+-- TABLE visa : visa actif (sans références directes à passeport et demande)
+INSERT INTO visa (id, reference_visa, date_debut, date_fin)
+VALUES (6001, 'VISA-ACTIF-001', CURRENT_DATE, NULL);
+
+-- TABLE visa_passeport : association entre visa, passeport et demande
+INSERT INTO visa_passeport (id_visa, id_passeport, id_demande, date_association)
+VALUES (6001, 2001, 4001, CURRENT_TIMESTAMP);
 
 -- TABLE carte_resident : carte initiale liée à la demande d'origine
 INSERT INTO carte_resident (id, numero_carte, date_debut, date_fin, id_passeport, id_demande)

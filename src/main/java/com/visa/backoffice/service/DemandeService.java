@@ -47,6 +47,7 @@ public class DemandeService {
     private final DocumentRepository documentRepository;
     private final PasseportRepository passeportRepository;
     private final VisaRepository visaRepository;
+    private final VisaPasseportService visaPasseportService;
 
     public DemandeService(DemandeRepository demandeRepository,
                          HistoriqueStatutRepository historiqueStatutRepository,
@@ -65,7 +66,8 @@ public class DemandeService {
                          CarteResidentService carteResidentService,
                          DocumentRepository documentRepository,
                          PasseportRepository passeportRepository,
-                         VisaRepository visaRepository) {
+                         VisaRepository visaRepository,
+                         VisaPasseportService visaPasseportService) {
         this.demandeRepository = demandeRepository;
         this.historiqueStatutRepository = historiqueStatutRepository;
         this.demandePieceRepository = demandePieceRepository;
@@ -84,6 +86,7 @@ public class DemandeService {
         this.documentRepository = documentRepository;
         this.passeportRepository = passeportRepository;
         this.visaRepository = visaRepository;
+        this.visaPasseportService = visaPasseportService;
     }
 
 
@@ -511,7 +514,7 @@ public class DemandeService {
         com.visa.backoffice.model.Demande duplicata = new com.visa.backoffice.model.Demande();
         duplicata.setDateDemande(java.time.LocalDateTime.now());
         duplicata.setDemandeur(origine.getDemandeur());
-        duplicata.setVisaTransformable(origine.getVisaTransformable());
+        duplicata.setVisaTransformable(null);
         duplicata.setTypeVisa(origine.getTypeVisa());
         duplicata.setTypeDemande(typeDuplicata);
         duplicata.setStatutDemande(statutCree);
@@ -537,7 +540,8 @@ public class DemandeService {
 
     /**
      * Créer une demande TRANSFERT
-     * RG-03, RG-07 : crée une demande TRANSFERT avec nouveau visa, ancien visa désactivé
+     * RG-03, RG-07 : crée une demande TRANSFERT sans rattacher de visa_transformable
+     * et ajoute seulement une nouvelle association dans visa_passeport.
      *
      * @param dto TransfertCreateDTO contenant idDemandeOrigine + nouveauPasseport + pièces
      * @return Created demande TRANSFERT (statut=CREE)
@@ -620,7 +624,7 @@ public DemandeResponseDTO creerTransfert(TransfertCreateDTO dto) {
     Demande demandeTransfert = new Demande();
     demandeTransfert.setDateDemande(LocalDateTime.now());
     demandeTransfert.setDemandeur(demandeOrigine.getDemandeur());
-    demandeTransfert.setVisaTransformable(demandeOrigine.getVisaTransformable());
+    demandeTransfert.setVisaTransformable(null);
     demandeTransfert.setTypeVisa(demandeOrigine.getTypeVisa());
     demandeTransfert.setTypeDemande(typeTransfert);
     demandeTransfert.setStatutDemande(statutCree);
@@ -634,36 +638,18 @@ public DemandeResponseDTO creerTransfert(TransfertCreateDTO dto) {
     // 7. Créer historique
     creerHistoriqueStatut(demandeTransfert, statutCree, "Demande de transfert créée depuis origine id=" + demandeOrigine.getId());
     
-    // 8. Désactiver l'ancien visa - CORRECTION ICI
-    Visa ancienVisa = visaRepository.findByDemandeId(demandeOrigine.getId());
-    if (ancienVisa != null) {
-        if (ancienVisa.getDateFin() == null || ancienVisa.getDateFin().isAfter(LocalDate.now())) {
-            ancienVisa.setDateFin(LocalDate.now());
-            visaRepository.save(ancienVisa);
-            System.out.println("Ancien visa désactivé - ID: " + ancienVisa.getId());
-        }
-    } else {
-        System.out.println("Aucun visa trouvé pour la demande origine: " + demandeOrigine.getId());
+    // 8. Récupérer le visa actif de la demande origine et créer une nouvelle association visa_passeport
+    Visa visaActif = visaService.findActiveVisaByDemandeId(demandeOrigine.getId());
+    if (visaActif == null) {
+        throw new BusinessException("Aucun visa actif trouvé pour la demande origine");
     }
-    
-    // 9. Récupérer la date de fin de l'ancien visa
-    LocalDate dateFinAncienVisa = LocalDate.now().plusYears(1);
-    if (ancienVisa != null && ancienVisa.getDateFin() != null) {
-        dateFinAncienVisa = ancienVisa.getDateFin();
-    }
-    
-    // 10. Créer le nouveau visa pour le transfert
-    Visa nouveauVisa = new Visa();
-    nouveauVisa.setReferenceVisa(genererReferenceVisa("TRF"));
-    nouveauVisa.setDateDebut(LocalDate.now());
-    nouveauVisa.setDateFin(dateFinAncienVisa);
-    nouveauVisa.setPasseport(nouveauPasseport);
-    nouveauVisa.setDemande(demandeTransfert);
-    nouveauVisa = visaRepository.save(nouveauVisa);
+
+    VisaPasseport nouvelleAssociation = visaPasseportService.creer(visaActif, nouveauPasseport, demandeTransfert);
     
     System.out.println("=== TRANSFERT CRÉÉ AVEC SUCCÈS ===");
     System.out.println("ID Demande transfert: " + demandeTransfert.getId());
-    System.out.println("ID Nouveau visa: " + nouveauVisa.getId());
+    System.out.println("ID Visa existant réutilisé: " + visaActif.getId());
+    System.out.println("ID Nouvelle association visa_passeport: " + nouvelleAssociation.getId());
     System.out.println("ID Nouveau passeport: " + nouveauPasseport.getId());
     
     return demandeMapper.toResponseDTO(demandeTransfert);
