@@ -36,7 +36,7 @@ export const useDemandeStore = defineStore("demande", {
       this.error = null;
 
       try {
-        const res = await api.get("/demandes");
+        const res = await api.get("/api/demandes");
         console.log("Raw response du backend :", res.data);
         console.log("Type de réponse :", typeof res.data);
         this.demandes = normalizeListeDemandes(res.data);
@@ -96,7 +96,7 @@ export const useDemandeStore = defineStore("demande", {
       this.error = null;
 
       try {
-        const res = await api.get(`/demandes/${id}`);
+        const res = await api.get(`/api/demandes/${id}`);
         this.demande = res.data;
         return this.demande;
       } catch (error) {
