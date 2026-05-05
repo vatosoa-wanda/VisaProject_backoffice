@@ -59,7 +59,7 @@ public class Demande {
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<CarteResident> cartesResidents = new HashSet<>();
+    private Set<CarteResidentPasseport> carteResidentPasseports = new HashSet<>();
 
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude

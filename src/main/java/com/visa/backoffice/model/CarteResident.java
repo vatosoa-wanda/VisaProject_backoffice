@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table(name = "carte_resident")
@@ -26,11 +27,6 @@ public class CarteResident {
     @Column(name = "date_fin")
     private LocalDate dateFin;
 
-    @ManyToOne
-    @JoinColumn(name = "id_passeport")
-    private Passeport passeport;
-
-    @ManyToOne
-    @JoinColumn(name = "id_demande")
-    private Demande demande;
+    @OneToMany(mappedBy = "carteResident", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CarteResidentPasseport> carteResidentPasseports;
 }

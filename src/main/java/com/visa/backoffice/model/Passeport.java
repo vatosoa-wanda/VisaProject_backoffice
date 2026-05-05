@@ -36,5 +36,5 @@ public class Passeport {
     @OneToMany(mappedBy = "passeport")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<CarteResident> cartesResidents = new HashSet<>();
+    private Set<CarteResidentPasseport> carteResidentPasseports = new HashSet<>();
 }

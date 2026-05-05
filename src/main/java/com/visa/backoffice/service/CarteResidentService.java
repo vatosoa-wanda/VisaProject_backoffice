@@ -2,20 +2,26 @@ package com.visa.backoffice.service;
 
 import com.visa.backoffice.exception.BusinessException;
 import com.visa.backoffice.model.CarteResident;
+import com.visa.backoffice.model.CarteResidentPasseport;
 import com.visa.backoffice.model.Demande;
 import com.visa.backoffice.model.Passeport;
 import com.visa.backoffice.repository.CarteResidentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @Transactional
 public class CarteResidentService {
 
     private final CarteResidentRepository carteResidentRepository;
+    private final CarteResidentPasseportService carteResidentPasseportService;
 
-    public CarteResidentService(CarteResidentRepository carteResidentRepository) {
+    public CarteResidentService(CarteResidentRepository carteResidentRepository,
+                               CarteResidentPasseportService carteResidentPasseportService) {
         this.carteResidentRepository = carteResidentRepository;
+        this.carteResidentPasseportService = carteResidentPasseportService;
     }
 
     /**
@@ -47,10 +53,11 @@ public class CarteResidentService {
         carte.setNumeroCarte(numero);
         carte.setDateDebut(java.time.LocalDate.now());
         carte.setDateFin(null);
-        carte.setPasseport(passeport);
-        carte.setDemande(demande);
 
-        return carteResidentRepository.save(carte);
+        CarteResident savedCarte = carteResidentRepository.save(carte);
+        carteResidentPasseportService.creer(savedCarte, passeport, demande);
+
+        return savedCarte;
     }
 
     /**
@@ -80,24 +87,32 @@ public class CarteResidentService {
 
         CarteResident carteOrigine = null;
         if (demandeDuplicata.getIdDemandeOrigine() != null) {
-            carteOrigine = carteResidentRepository.findByDemandeId(demandeDuplicata.getIdDemandeOrigine());
+            List<CarteResidentPasseport> cartesOrigine = carteResidentPasseportService.findByDemandeId(demandeDuplicata.getIdDemandeOrigine());
+            if (!cartesOrigine.isEmpty()) {
+                carteOrigine = cartesOrigine.get(0).getCarteResident();
+            }
         }
 
         CarteResident carte = new CarteResident();
         carte.setNumeroCarte(numero);
         carte.setDateDebut(java.time.LocalDate.now());
         carte.setDateFin(carteOrigine != null ? carteOrigine.getDateFin() : null);
-        carte.setPasseport(passeport);
-        carte.setDemande(demandeDuplicata);
 
-        return carteResidentRepository.save(carte);
+        CarteResident savedCarte = carteResidentRepository.save(carte);
+        carteResidentPasseportService.creer(savedCarte, passeport, demandeDuplicata);
+
+        return savedCarte;
     }
 
     /**
      * Récupérer une carte résident par id_demande
      */
     public CarteResident findByDemandeId(Long idDemande) {
-        return carteResidentRepository.findByDemandeId(idDemande);
+        List<CarteResidentPasseport> associations = carteResidentPasseportService.findByDemandeId(idDemande);
+        if (associations.isEmpty()) {
+            return null;
+        }
+        return associations.get(0).getCarteResident();
     }
 
     /**

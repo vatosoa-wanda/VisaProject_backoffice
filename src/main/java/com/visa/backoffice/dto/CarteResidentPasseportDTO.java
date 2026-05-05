@@ -4,15 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
+
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CarteResidentDTO {
+public class CarteResidentPasseportDTO {
     private Long id;
-    private String numeroCarte;
-    private LocalDate dateDebut;
-    private LocalDate dateFin;
+    private Long idCarteResident;
+    private Long idPasseport;
+    private Long idDemande;
+    private LocalDateTime dateAssociation;
 }
