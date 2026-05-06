@@ -23,7 +23,7 @@
           <!-- Section Gauche: Informations -->
           <div class="demande-info">
             <h2>Informations de la demande</h2>
-            
+
             <div class="info-section">
               <h3>Demandeur</h3>
               <p><strong>Nom :</strong> {{ demande.nomDemandeur }} {{ demande.prenomDemandeur }}</p>
@@ -37,7 +37,7 @@
               <p><strong>Numéro :</strong> {{ demande.numeroPasSeport || "Non disponible" }}</p>
               <p><strong>Date de demande :</strong> {{ formatDate(demande.dateDemande) }}</p>
             </div>
-            
+
             <div class="info-section">
               <h3>Pièces fournies</h3>
               <div v-if="demande.pieces && demande.pieces.length">
@@ -62,6 +62,10 @@
               <p v-if="demande.dateModification">
                 <strong>Modifiée le :</strong> {{ formatDate(demande.dateModification) }}
               </p>
+            </div>
+
+            <div class="info-section">
+              <HistoriqueStatutList :demandeId="demande.id" />
             </div>
 
             <div class="actions">
@@ -90,6 +94,7 @@ import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useDemandeStore } from "../stores/demandeStore";
 import QRCodeDisplay from "../components/QRCodeDisplay.vue";
+import HistoriqueStatutList from "../components/HistoriqueStatutList.vue";
 
 const route = useRoute();
 const store = useDemandeStore();

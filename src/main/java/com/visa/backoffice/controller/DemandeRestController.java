@@ -2,7 +2,9 @@ package com.visa.backoffice.controller;
 
 import com.visa.backoffice.dto.DemandeCreateDTO;
 import com.visa.backoffice.dto.DemandeResponseDTO;
+import com.visa.backoffice.dto.HistoriqueStatutDTO;
 import com.visa.backoffice.service.DemandeService;
+import com.visa.backoffice.service.HistoriqueStatutService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +17,11 @@ import java.util.List;
 public class DemandeRestController {
 
     private final DemandeService demandeService;
+    private final HistoriqueStatutService historiqueStatutService;
 
-    public DemandeRestController(DemandeService demandeService) {
+    public DemandeRestController(DemandeService demandeService, HistoriqueStatutService historiqueStatutService) {
         this.demandeService = demandeService;
+        this.historiqueStatutService = historiqueStatutService;
     }
 
     /**
@@ -36,6 +40,15 @@ public class DemandeRestController {
     @GetMapping("/{id}")
     public ResponseEntity<DemandeResponseDTO> getDemande(@PathVariable Long id) {
         return ResponseEntity.ok(demandeService.getDemande(id));
+    }
+
+    /**
+     * GET /api/demandes/{id}/historique
+     * Retourner l'historique des statuts d'une demande
+     */
+    @GetMapping("/{id}/historique")
+    public ResponseEntity<List<HistoriqueStatutDTO>> getHistoriqueDemande(@PathVariable Long id) {
+        return ResponseEntity.ok(historiqueStatutService.getHistoriqueParDemande(id));
     }
 
     /**
@@ -58,3 +71,4 @@ public class DemandeRestController {
         return ResponseEntity.noContent().build();
     }
 }
+
