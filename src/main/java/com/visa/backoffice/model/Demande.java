@@ -49,15 +49,17 @@ public class Demande {
     @JoinColumn(name = "id_demande_origine", insertable = false, updatable = false)
     private Demande demandeOrigine;
 
+    // La relation vers Visa est maintenant gérée via VisaPasseport
+    // Les associations visa-demande se font par: VisaPasseport.demande
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<Visa> visas = new HashSet<>();
+    private Set<VisaPasseport> visaPasseports = new HashSet<>();
 
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Set<CarteResident> cartesResidents = new HashSet<>();
+    private Set<CarteResidentPasseport> carteResidentPasseports = new HashSet<>();
 
     @OneToMany(mappedBy = "demande")
     @ToString.Exclude

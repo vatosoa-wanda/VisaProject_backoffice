@@ -28,17 +28,20 @@ public class TransfertController {
     private final SituationFamilialeRepository situationFamilialeRepository;
     private final NationaliteRepository nationaliteRepository;
     private final PieceService pieceService;
+    private final com.visa.backoffice.service.VisaPasseportService visaPasseportService;
 
     public TransfertController(DemandeService demandeService,
                              TypeVisaRepository typeVisaRepository,
                              SituationFamilialeRepository situationFamilialeRepository,
                              NationaliteRepository nationaliteRepository,
-                             PieceService pieceService) {
+                             PieceService pieceService,
+                             com.visa.backoffice.service.VisaPasseportService visaPasseportService) {
         this.demandeService = demandeService;
         this.typeVisaRepository = typeVisaRepository;
         this.situationFamilialeRepository = situationFamilialeRepository;
         this.nationaliteRepository = nationaliteRepository;
         this.pieceService = pieceService;
+        this.visaPasseportService = visaPasseportService;
     }
 
     @GetMapping("/formulaire")
@@ -75,6 +78,24 @@ public class TransfertController {
             model.addAttribute("origine", demandeService.getDemande(idDemandeOrigine));
             if (demandeForm.getIdTypeVisa() != null) {
                 model.addAttribute("piecesSpecifiques", demandeService.getPiecesFormulaire(demandeForm.getIdTypeVisa()));
+            }
+            // Remplacer les données héritées du visa_transformable par les données
+            // du visa (table `visa`) associé via `visa_passeport` si disponible.
+            try {
+                var assoc = visaPasseportService.findAnyVisaByDemandeId(idDemandeOrigine);
+                if (assoc != null && assoc.getVisa() != null) {
+                    var visa = assoc.getVisa();
+                    // Mapper les champs du visa vers le DTO attendu par le formulaire
+                    var visaDTO = com.visa.backoffice.dto.VisaTransformableDTO.builder()
+                            .referenceVisa(visa.getReferenceVisa())
+                            .dateEntree(visa.getDateDebut())
+                            .dateExpiration(visa.getDateFin())
+                            .build();
+                    demandeForm.setVisaDTO(visaDTO);
+                }
+            } catch (Exception ex) {
+                // En cas d'erreur, on ignore et on conserve les données existantes
+                System.err.println("Impossible de récupérer le visa via visa_passeport: " + ex.getMessage());
             }
         } else {
             demandeForm = DemandeCreateDTO.builder()
@@ -133,6 +154,19 @@ public class TransfertController {
             if (dto.getPasseportNouveauDTO() == null) {
                 hasRealErrors = true;
                 model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
+            }
+            // Pour le cas AVEC antécédent, les informations du visa proviennent de la demande d'origine
+            if (dto.getVisaDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du visa à transférer sont obligatoires");
+            } else {
+                // Ne pas exiger systématiquement les dates ici : le visa en base peut être actif
+                // (dateExpiration == null). Si les deux dates sont présentes, on vérifie l'ordre.
+                if (dto.getVisaDTO().getDateEntree() != null && dto.getVisaDTO().getDateExpiration() != null
+                        && dto.getVisaDTO().getDateExpiration().isBefore(dto.getVisaDTO().getDateEntree())) {
+                    hasRealErrors = true;
+                    model.addAttribute("errorMessage", "La date d'expiration du visa doit être postérieure à la date d'entrée");
+                }
             }
             if (dto.getIdTypeVisa() == null) {
                 hasRealErrors = true;
@@ -213,7 +247,7 @@ public class TransfertController {
                 System.out.println("   → Demande NOUVELLE ID: " + nouvelleDemande.getId());
                 
                 System.out.println("2. Approbation automatique...");
-                demandeService.approuverDemandeNouvelle(nouvelleDemande.getId(), null, true);
+                demandeService.approuverDemandeNouvelle(nouvelleDemande.getId(), null, true, dto.getVisaTransferDTO());
                 System.out.println("   → Demande approuvée avec succès");
                 
                 System.out.println("3. Création du TRANSFERT...");
