@@ -136,6 +136,193 @@
 
         <h3>État Civil (lecture seule)</h3>
 
+    <!-- Formulaire complet - s'affiche dans les cas suivants :
+         1. Mode SANS antécédent (création complète)
+         2. Mode AVEC antécédent ET une demande a été sélectionnée (idDemandeOrigine non null)
+         3. Aucun type défini (fallback)
+    -->
+    <form th:if="${modeSansAntecedent == true || demandeForm == null || demandeForm.typeDemande == null || (demandeForm != null && demandeForm.idDemandeOrigine != null)}"
+        th:action="${formAction != null ? formAction : '/demandes/nouvelle'}"
+        th:object="${demandeForm}" method="post" novalidate>
+
+        <!-- Champs cachés -->
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.avecAntecedent != null}" th:field="*{avecAntecedent}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{idDemandeOrigine}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.typeDemande != null}" th:field="*{typeDemande}">
+        
+        <!-- Champs cachés pour les données héritées (cas AVEC antécédent) -->
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nom}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.prenom}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.nomJeuneFille}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.dateNaissance}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.lieuNaissance}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idSituationFamiliale}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.idNationalite}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.adresseMadagascar}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.telephone}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{demandeurDTO.email}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.numero}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateDelivrance}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{passeportDTO.dateExpiration}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.referenceVisa}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateEntree}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.lieuEntree}">
+        <input type="hidden" th:if="${demandeForm != null && demandeForm.idDemandeOrigine != null}" th:field="*{visaDTO.dateExpiration}">
+
+        <!-- Blocs du formulaire - affichés si mode SANS antécédent -->
+        <div th:if="${demandeForm == null || demandeForm.avecAntecedent != true}">
+            <!-- ÉTAT CIVIL -->
+            <div class="section-header"><h2>État Civil</h2></div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nom <span class="badge-obligatoire">*</span></label>
+                    <input type="text" class="form-control" th:field="*{demandeurDTO.nom}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Prénom</label>
+                    <input type="text" class="form-control" th:field="*{demandeurDTO.prenom}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Date naissance <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{demandeurDTO.dateNaissance}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Situation familiale <span class="badge-obligatoire">*</span></label>
+                    <select class="form-select" th:field="*{demandeurDTO.idSituationFamiliale}" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option th:each="sf : ${situationsFamiliales}" th:value="${sf.id}" th:text="${sf.libelle}"></option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nationalité <span class="badge-obligatoire">*</span></label>
+                    <select class="form-select" th:field="*{demandeurDTO.idNationalite}" required>
+                        <option value="">-- Sélectionner --</option>
+                        <option th:each="nat : ${nationalites}" th:value="${nat.id}" th:text="${nat.libelle}"></option>
+                    </select>
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Adresse Madagascar <span class="badge-obligatoire">*</span></label>
+                    <textarea class="form-control" th:field="*{demandeurDTO.adresseMadagascar}" rows="2" required></textarea>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Téléphone <span class="badge-obligatoire">*</span></label>
+                    <input type="tel" class="form-control" th:field="*{demandeurDTO.telephone}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" th:field="*{demandeurDTO.email}">
+                </div>
+            </div>
+
+            <!-- PASSEPORT -->
+            <div class="section-header"><h2>Passeport</h2></div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Numéro <span class="badge-obligatoire">*</span></label>
+                    <input type="text" class="form-control" th:field="*{passeportDTO.numero}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Date délivrance <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{passeportDTO.dateDelivrance}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Date expiration <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{passeportDTO.dateExpiration}" required>
+                </div>
+            </div>
+
+            <!-- VISA TRANSFORMABLE -->
+            <div class="section-header"><h2>Visa Transformable</h2></div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Référence visa <span class="badge-obligatoire">*</span></label>
+                    <input type="text" class="form-control" th:field="*{visaDTO.referenceVisa}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Date entrée <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{visaDTO.dateEntree}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Date expiration <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{visaDTO.dateExpiration}" required>
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Lieu d'entrée <span class="badge-obligatoire">*</span></label>
+                    <input type="text" class="form-control" th:field="*{visaDTO.lieuEntree}" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOUVEAU PASSEPORT (uniquement pour TRANSFERT) -->
+        <div th:if="${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT'}">
+            <div class="section-header bg-warning">
+                <h2>📌 Nouveau Passeport <span class="badge-obligatoire">*</span></h2>
+                <p class="text-muted">Le visa sera transféré sur ce nouveau passeport. L'ancien visa sera désactivé.</p>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Numéro <span class="badge-obligatoire">*</span></label>
+                    <input type="text" class="form-control" th:field="*{passeportNouveauDTO.numero}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Date délivrance <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{passeportNouveauDTO.dateDelivrance}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Date expiration <span class="badge-obligatoire">*</span></label>
+                    <input type="date" class="form-control" th:field="*{passeportNouveauDTO.dateExpiration}" required>
+                </div>
+            </div>
+
+            <!-- Visa à transférer - SANS ANTÉCÉDENT (saisie manuelle) -->
+            <div th:if="${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT' && demandeForm.avecAntecedent != true}">
+                <div class="section-header bg-light mt-4">
+                    <h2>🧾 Visa à transférer <span class="badge-obligatoire">*</span></h2>
+                    <p class="text-muted">Saisir les informations du visa qui sera transféré sur le nouveau passeport.</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date début <span class="badge-obligatoire">*</span></label>
+                        <input type="date" class="form-control" th:field="*{visaTransferDTO.dateDebut}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date fin <span class="badge-obligatoire">*</span></label>
+                        <input type="date" class="form-control" th:field="*{visaTransferDTO.dateFin}" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visa à transférer - AVEC ANTÉCÉDENT (affichage des données héritées) -->
+            <div th:if="${demandeForm != null && demandeForm.typeDemande == 'TRANSFERT' && demandeForm.avecAntecedent == true}">
+                <div class="section-header bg-light mt-4">
+                    <h2>🧾 Visa à transférer <span class="badge-obligatoire">*</span></h2>
+                    <p class="text-muted">Visa en cours de la demande d'origine (données héritées).</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Référence visa</label>
+                        <input type="text" class="form-control readonly-field" th:value="${demandeForm.visaDTO != null ? demandeForm.visaDTO.referenceVisa : ''}" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Lieu d'entrée</label>
+                        <input type="text" class="form-control readonly-field" th:value="${demandeForm.visaDTO != null ? demandeForm.visaDTO.lieuEntree : ''}" readonly>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date d'entrée</label>
+                        <input type="date" class="form-control readonly-field" th:value="${demandeForm.visaDTO != null ? demandeForm.visaDTO.dateEntree : ''}" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date d'expiration</label>
+                        <input type="date" class="form-control readonly-field" th:value="${demandeForm.visaDTO != null ? demandeForm.visaDTO.dateExpiration : ''}" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TYPE VISA -->
+        <div class="section-header"><h2>Type de visa</h2></div>
         <div class="row">
 
             <div class="col-md-6">
