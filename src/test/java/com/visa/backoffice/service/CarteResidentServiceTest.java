@@ -2,6 +2,7 @@ package com.visa.backoffice.service;
 
 import com.visa.backoffice.exception.BusinessException;
 import com.visa.backoffice.model.CarteResident;
+import com.visa.backoffice.model.CarteResidentPasseport;
 import com.visa.backoffice.model.Demande;
 import com.visa.backoffice.model.Passeport;
 import com.visa.backoffice.repository.CarteResidentRepository;
@@ -12,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,11 +26,14 @@ class CarteResidentServiceTest {
     @Mock
     private CarteResidentRepository carteResidentRepository;
 
+    @Mock
+    private CarteResidentPasseportService carteResidentPasseportService;
+
     private CarteResidentService carteResidentService;
 
     @BeforeEach
     void setUp() {
-        carteResidentService = new CarteResidentService(carteResidentRepository);
+        carteResidentService = new CarteResidentService(carteResidentRepository, carteResidentPasseportService);
     }
 
     @Test
@@ -35,15 +41,18 @@ class CarteResidentServiceTest {
         Demande demande = Demande.builder().id(1L).build();
         Passeport passeport = Passeport.builder().id(2L).numero("P123").build();
         when(carteResidentRepository.findByNumeroCarte(any())).thenReturn(null);
-        when(carteResidentRepository.save(any(CarteResident.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(carteResidentRepository.save(any(CarteResident.class))).thenAnswer(invocation -> {
+            CarteResident carte = invocation.getArgument(0);
+            carte.setId(1L);
+            return carte;
+        });
+        when(carteResidentPasseportService.creer(any(), any(), any())).thenReturn(null);
 
         CarteResident carte = carteResidentService.creer(demande, passeport);
 
         assertNotNull(carte.getNumeroCarte());
         assertEquals(LocalDate.now(), carte.getDateDebut());
         assertNull(carte.getDateFin());
-        assertEquals(demande, carte.getDemande());
-        assertEquals(passeport, carte.getPasseport());
     }
 
     @Test
@@ -61,19 +70,29 @@ class CarteResidentServiceTest {
                 .numeroCarte("CRD-ORIG-001")
                 .dateDebut(LocalDate.now().minusYears(1))
                 .dateFin(LocalDate.now().plusYears(1))
-                .demande(origine)
-                .passeport(passeport)
                 .build();
 
         when(carteResidentRepository.findByNumeroCarte(any())).thenReturn(null);
-        when(carteResidentRepository.findByDemandeId(10L)).thenReturn(carteOrigine);
-        when(carteResidentRepository.save(any(CarteResident.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        List<CarteResidentPasseport> cartesOrigine = new ArrayList<>();
+        CarteResidentPasseport crp = CarteResidentPasseport.builder()
+                .id(1L)
+                .carteResident(carteOrigine)
+                .passeport(passeport)
+                .demande(origine)
+                .build();
+        cartesOrigine.add(crp);
+        when(carteResidentPasseportService.findByDemandeId(10L)).thenReturn(cartesOrigine);
+        when(carteResidentRepository.save(any(CarteResident.class))).thenAnswer(invocation -> {
+            CarteResident carte = invocation.getArgument(0);
+            carte.setId(2L);
+            return carte;
+        });
+        when(carteResidentPasseportService.creer(any(), any(), any())).thenReturn(null);
 
         CarteResident carte = carteResidentService.creerPourDuplicata(duplicata, passeport);
 
         assertEquals(LocalDate.now(), carte.getDateDebut());
         assertEquals(carteOrigine.getDateFin(), carte.getDateFin());
-        assertEquals(duplicata, carte.getDemande());
-        assertEquals(passeport, carte.getPasseport());
     }
 }
+

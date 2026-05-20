@@ -75,6 +75,7 @@ public class TransfertController {
     private final NationaliteRepository nationaliteRepository;
 
     private final PieceService pieceService;
+    private final com.visa.backoffice.service.VisaPasseportService visaPasseportService;
 
 
 
@@ -85,9 +86,8 @@ public class TransfertController {
                              SituationFamilialeRepository situationFamilialeRepository,
 
                              NationaliteRepository nationaliteRepository,
-
-                             PieceService pieceService) {
-
+                             PieceService pieceService,
+                             com.visa.backoffice.service.VisaPasseportService visaPasseportService) {
         this.demandeService = demandeService;
 
         this.typeVisaRepository = typeVisaRepository;
@@ -97,7 +97,7 @@ public class TransfertController {
         this.nationaliteRepository = nationaliteRepository;
 
         this.pieceService = pieceService;
-
+        this.visaPasseportService = visaPasseportService;
     }
 
 
@@ -180,7 +180,40 @@ public class TransfertController {
 
         model.addAttribute("pageTitle", "Demande de Transfert");
 
-        model.addAttribute("formAction", "/transfert/formulaire");
+        DemandeCreateDTO demandeForm;
+        if (idDemandeOrigine != null) {
+            demandeForm = demandeService.getDemandePourModification(idDemandeOrigine);
+            demandeForm.setIdDemandeOrigine(idDemandeOrigine);
+            demandeForm.setTypeDemande("TRANSFERT");
+            demandeForm.setAvecAntecedent(true);
+            model.addAttribute("origine", demandeService.getDemande(idDemandeOrigine));
+            if (demandeForm.getIdTypeVisa() != null) {
+                model.addAttribute("piecesSpecifiques", demandeService.getPiecesFormulaire(demandeForm.getIdTypeVisa()));
+            }
+            // Remplacer les données héritées du visa_transformable par les données
+            // du visa (table `visa`) associé via `visa_passeport` si disponible.
+            try {
+                var assoc = visaPasseportService.findAnyVisaByDemandeId(idDemandeOrigine);
+                if (assoc != null && assoc.getVisa() != null) {
+                    var visa = assoc.getVisa();
+                    // Mapper les champs du visa vers le DTO attendu par le formulaire
+                    var visaDTO = com.visa.backoffice.dto.VisaTransformableDTO.builder()
+                            .referenceVisa(visa.getReferenceVisa())
+                            .dateEntree(visa.getDateDebut())
+                            .dateExpiration(visa.getDateFin())
+                            .build();
+                    demandeForm.setVisaDTO(visaDTO);
+                }
+            } catch (Exception ex) {
+                // En cas d'erreur, on ignore et on conserve les données existantes
+                System.err.println("Impossible de récupérer le visa via visa_passeport: " + ex.getMessage());
+            }
+        } else {
+            demandeForm = DemandeCreateDTO.builder()
+                    .typeDemande("TRANSFERT")
+                    .avecAntecedent(avecAntecedent != null ? avecAntecedent : false)
+                    .build();
+        }
 
         model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
 
@@ -233,6 +266,86 @@ public class TransfertController {
             Model model,
 
             RedirectAttributes redirectAttributes) {
+        
+        System.out.println("=== SOUMISSION FORMULAIRE TRANSFERT ===");
+        System.out.println("Type demande: " + dto.getTypeDemande());
+        System.out.println("Avec antécédent: " + dto.getAvecAntecedent());
+        System.out.println("Id demande origine: " + dto.getIdDemandeOrigine());
+        
+        // NE PAS utiliser result.getFieldErrors().clear() car c'est une liste immuable
+        // On va ignorer les erreurs des champs hérités en mode AVEC antécédent
+        
+        boolean hasRealErrors = false;
+        
+        if (Boolean.TRUE.equals(dto.getAvecAntecedent())) {
+            // En mode AVEC antécédent, on valide uniquement:
+            // - le nouveau passeport
+            // - le type de visa
+            // - les pièces
+            if (dto.getPasseportNouveauDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
+            }
+            // Pour le cas AVEC antécédent, les informations du visa proviennent de la demande d'origine
+            if (dto.getVisaDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du visa à transférer sont obligatoires");
+            } else {
+                // Ne pas exiger systématiquement les dates ici : le visa en base peut être actif
+                // (dateExpiration == null). Si les deux dates sont présentes, on vérifie l'ordre.
+                if (dto.getVisaDTO().getDateEntree() != null && dto.getVisaDTO().getDateExpiration() != null
+                        && dto.getVisaDTO().getDateExpiration().isBefore(dto.getVisaDTO().getDateEntree())) {
+                    hasRealErrors = true;
+                    model.addAttribute("errorMessage", "La date d'expiration du visa doit être postérieure à la date d'entrée");
+                }
+            }
+            if (dto.getIdTypeVisa() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le type de visa est obligatoire");
+            }
+        } else {
+            // En mode SANS antécédent, on valide tout normalement
+            // Simuler la validation manuellement
+            if (dto.getDemandeurDTO() == null || dto.getDemandeurDTO().getNom() == null || dto.getDemandeurDTO().getNom().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le nom du demandeur est obligatoire");
+            }
+            if (dto.getPasseportDTO() == null || dto.getPasseportDTO().getNumero() == null || dto.getPasseportDTO().getNumero().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le numéro de passeport est obligatoire");
+            }
+            if (dto.getVisaDTO() == null || dto.getVisaDTO().getReferenceVisa() == null || dto.getVisaDTO().getReferenceVisa().isBlank()) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "La référence visa est obligatoire");
+            }
+            if (dto.getPasseportNouveauDTO() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Les informations du nouveau passeport sont obligatoires");
+            }
+            if (dto.getIdTypeVisa() == null) {
+                hasRealErrors = true;
+                model.addAttribute("errorMessage", "Le type de visa est obligatoire");
+            }
+        }
+        
+        if (hasRealErrors) {
+            model.addAttribute("typeVisas", typeVisaRepository.findAll());
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+            model.addAttribute("situations", situationFamilialeRepository.findAll());
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+            model.addAttribute("formAction", "/transfert/formulaire");
+            model.addAttribute("submitLabel", "Créer le transfert");
+            model.addAttribute("cancelUrl", "/");
+            model.addAttribute("demandeForm", dto);
+            model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
+            model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
+            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
+            return "demande/formulaire";
+        }
 
 
 
@@ -265,13 +378,38 @@ public class TransfertController {
 
 
         try {
-
-            // CAS 2.1 : TRANSFERT AVEC ANTÉCÉDENT
-
-            if (dto.getIdDemandeOrigine() != null && dto.getAvecAntecedent() != null && dto.getAvecAntecedent()) {
-
-                TransfertCreateDTO transfertDTO = TransfertCreateDTO.builder()
-
+            DemandeResponseDTO created = null;
+            
+            // ========== CAS SANS ANTÉCÉDENT ==========
+            if (Boolean.FALSE.equals(dto.getAvecAntecedent())) {
+                System.out.println("=== CAS TRANSFERT SANS ANTÉCÉDENT ===");
+                
+                System.out.println("1. Création de la demande NOUVELLE...");
+                DemandeResponseDTO nouvelleDemande = demandeService.creerDemande(dto);
+                System.out.println("   → Demande NOUVELLE ID: " + nouvelleDemande.getId());
+                
+                System.out.println("2. Approbation automatique...");
+                demandeService.approuverDemandeNouvelle(nouvelleDemande.getId(), null, true, dto.getVisaTransferDTO());
+                System.out.println("   → Demande approuvée avec succès");
+                
+                System.out.println("3. Création du TRANSFERT...");
+                created = demandeService.creerTransfertSansAntecedent(
+                        nouvelleDemande.getId(),
+                        dto.getPasseportNouveauDTO(),
+                        dto.getPiecesFournies()
+                );
+                System.out.println("   → TRANSFERT créé ID: " + created.getId());
+                
+                redirectAttributes.addFlashAttribute("successMessage", "Transfert créé avec succès");
+                return "redirect:/transfert/" + created.getId() + "/confirmation";
+            }
+            
+            // ========== CAS AVEC ANTÉCÉDENT ==========
+            if (Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() != null) {
+                System.out.println("=== CAS TRANSFERT AVEC ANTÉCÉDENT ===");
+                System.out.println("idDemandeOrigine: " + dto.getIdDemandeOrigine());
+                
+                TransfertCreateDTO transfertDto = TransfertCreateDTO.builder()
                         .idDemandeOrigine(dto.getIdDemandeOrigine())
 
                         .passeportNouveau(dto.getPasseportNouveauDTO())
