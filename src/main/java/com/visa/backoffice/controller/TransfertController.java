@@ -1,75 +1,133 @@
 package com.visa.backoffice.controller;
 
-import com.visa.backoffice.dto.*;
+
+
+import com.visa.backoffice.dto.DemandeCreateDTO;
+
+import com.visa.backoffice.dto.PieceDTO;
+
+import com.visa.backoffice.dto.TransfertCreateDTO;
+
 import com.visa.backoffice.exception.BusinessException;
+
+import com.visa.backoffice.exception.ResourceNotFoundException;
+
 import com.visa.backoffice.repository.NationaliteRepository;
+
 import com.visa.backoffice.repository.SituationFamilialeRepository;
+
 import com.visa.backoffice.repository.TypeVisaRepository;
+
 import com.visa.backoffice.service.DemandeService;
+
 import com.visa.backoffice.service.PieceService;
+
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.stereotype.Controller;
+
 import org.springframework.ui.Model;
+
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
+
 import org.springframework.web.bind.annotation.*;
+
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+
+
 import jakarta.validation.Valid;
+
 import java.util.List;
-import java.util.stream.Collectors;
+
+
+
+/**
+
+ * TransfertController
+
+ * Dev1 implémentera les routes pour TRANSFERT
+
+ * Routes :
+
+ *   GET /transfert/formulaire     → Afficher formulaire avec choix antécédent
+
+ *   POST /transfert/formulaire    → Soumettre demande TRANSFERT
+
+ *   GET /transfert/{id}/confirmation → Afficher confirmation
+
+ */
 
 @Controller
+
 @RequestMapping("/transfert")
+
 public class TransfertController {
 
+
+
     private final DemandeService demandeService;
+
     private final TypeVisaRepository typeVisaRepository;
+
     private final SituationFamilialeRepository situationFamilialeRepository;
+
     private final NationaliteRepository nationaliteRepository;
+
     private final PieceService pieceService;
     private final com.visa.backoffice.service.VisaPasseportService visaPasseportService;
 
+
+
     public TransfertController(DemandeService demandeService,
+
                              TypeVisaRepository typeVisaRepository,
+
                              SituationFamilialeRepository situationFamilialeRepository,
+
                              NationaliteRepository nationaliteRepository,
                              PieceService pieceService,
                              com.visa.backoffice.service.VisaPasseportService visaPasseportService) {
         this.demandeService = demandeService;
+
         this.typeVisaRepository = typeVisaRepository;
+
         this.situationFamilialeRepository = situationFamilialeRepository;
+
         this.nationaliteRepository = nationaliteRepository;
+
         this.pieceService = pieceService;
         this.visaPasseportService = visaPasseportService;
     }
 
+
+
+    /**
+
+     * GET /transfert/formulaire
+
+     * Afficher le formulaire de transfert (avec choix antécédent si applicable)
+
+     */
+
     @GetMapping("/formulaire")
+
     public String afficherFormulaire(@RequestParam(required = false) Long idDemandeOrigine,
-                                    @RequestParam(required = false) Boolean avecAntecedent,
+
                                     @RequestParam(required = false) Long idTypeVisa,
-                                    @RequestParam(required = false) Boolean rechercher,
-                                    @ModelAttribute("recherche") DemandeRechercheDTO recherche,
+
                                     Model model) {
-        model.addAttribute("typeVisas", typeVisaRepository.findAll());
-        model.addAttribute("typesVisa", typeVisaRepository.findAll());
-        model.addAttribute("situations", situationFamilialeRepository.findAll());
-        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
-        model.addAttribute("nationalites", nationaliteRepository.findAll());
-        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
-        model.addAttribute("piecesSpecifiques", idTypeVisa != null ? demandeService.getPiecesFormulaire(idTypeVisa) : List.of());
-        model.addAttribute("formAction", "/transfert/formulaire");
-        model.addAttribute("submitLabel", "Créer le transfert");
-        model.addAttribute("cancelUrl", "/");
-        model.addAttribute("avecAntecedent", avecAntecedent);
 
-        boolean modeAvecAntecedent = Boolean.TRUE.equals(avecAntecedent);
-        boolean modeSansAntecedent = Boolean.FALSE.equals(avecAntecedent);
-        model.addAttribute("modeAvecAntecedent", modeAvecAntecedent);
-        model.addAttribute("modeSansAntecedent", modeSansAntecedent);
-        model.addAttribute("afficherRecherche", modeAvecAntecedent && idDemandeOrigine == null);
+        DemandeCreateDTO form = new DemandeCreateDTO();
 
-        DemandeCreateDTO demandeForm;
+        form.setTypeDemande("TRANSFERT");
+
+        form.setIdTypeVisa(idTypeVisa);
+
+
+
+        // CAS 2.1 : TRANSFERT AVEC ANTÉCÉDENT
+
         if (idDemandeOrigine != null) {
             demandeForm = demandeService.getDemandePourModification(idDemandeOrigine);
             demandeForm.setIdDemandeOrigine(idDemandeOrigine);
@@ -104,36 +162,108 @@ public class TransfertController {
                     .build();
         }
 
-        model.addAttribute("demandeForm", demandeForm);
+            form.setIdDemandeOrigine(idDemandeOrigine);
 
-        if (modeAvecAntecedent && idDemandeOrigine == null && Boolean.TRUE.equals(rechercher)) {
+            form.setAvecAntecedent(true);
+
+
+
+            // Pré-remplir avec les données de la demande d'origine
+
             try {
-                List<DemandeResumeeDTO> results = demandeService.rechercherDemandesApprouveesPourTransfert(recherche);
-                model.addAttribute("resultatsRecherche", results);
-                model.addAttribute("rechercheEffectuee", true);
-            } catch (BusinessException exception) {
-                model.addAttribute("errorMessage", exception.getMessage());
-                model.addAttribute("rechercheEffectuee", true);
-                model.addAttribute("resultatsRecherche", List.of());
+
+                com.visa.backoffice.dto.DemandeResponseDTO demandeOrigine = demandeService.getDemande(idDemandeOrigine);
+
+                // L'extraction des données sera faite côté template via le dto
+
+                model.addAttribute("demandeForm", form);
+
+                model.addAttribute("demandeOrigineId", idDemandeOrigine);
+
+            } catch (Exception e) {
+
+                model.addAttribute("errorMessage", "Demande d'origine introuvable");
+
             }
+
+        } else {
+
+            // CAS 2.2 : TRANSFERT SANS ANTÉCÉDENT (non implémenté dans cette tâche)
+
+            form.setAvecAntecedent(false);
+
+            model.addAttribute("demandeForm", form);
+
         }
 
+
+
+        model.addAttribute("demandeForm", form);
+
+        model.addAttribute("typesVisa", typeVisaRepository.findAll());
+
+        model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+
+        model.addAttribute("nationalites", nationaliteRepository.findAll());
+
+        model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+
+        model.addAttribute("piecesSpecifiques", idTypeVisa != null ? demandeService.getPiecesFormulaire(idTypeVisa) : List.of());
+
+        model.addAttribute("pageTitle", "Demande de Transfert");
+
+        model.addAttribute("formAction", "/transfert/formulaire");
+
+        model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+
+        model.addAttribute("cancelUrl", "/demandes");
+
         return "demande/formulaire";
+
     }
+
+
+
+    /**
+
+     * GET /transfert/pieces?idTypeVisa=1
+
+     * AJAX : retourner les pièces spécifiques en JSON
+
+     */
 
     @GetMapping("/pieces")
+
     @ResponseBody
+
     public ResponseEntity<List<PieceDTO>> getPiecesParTypeVisa(@RequestParam Long idTypeVisa) {
+
         List<PieceDTO> pieces = demandeService.getPiecesFormulaire(idTypeVisa);
+
         return ResponseEntity.ok(pieces);
+
     }
 
+
+
+    /**
+
+     * POST /transfert/formulaire
+
+     * Soumettre et enregistrer la demande de transfert
+
+     */
+
     @PostMapping("/formulaire")
+
     public String soumettreFormulaire(
-            @ModelAttribute("demandeForm") DemandeCreateDTO dto,  // Enlever @Valid ici
+
+            @Valid @ModelAttribute("demandeForm") DemandeCreateDTO dto,
+
             BindingResult result,
-            @RequestParam(required = false) String refreshPieces,
+
             Model model,
+
             RedirectAttributes redirectAttributes) {
         
         System.out.println("=== SOUMISSION FORMULAIRE TRANSFERT ===");
@@ -200,40 +330,28 @@ public class TransfertController {
         if (hasRealErrors) {
             model.addAttribute("typeVisas", typeVisaRepository.findAll());
             model.addAttribute("typesVisa", typeVisaRepository.findAll());
-            model.addAttribute("situations", situationFamilialeRepository.findAll());
+
             model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+
             model.addAttribute("nationalites", nationaliteRepository.findAll());
+
             model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+
             model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+
+            model.addAttribute("pageTitle", "Demande de Transfert");
+
             model.addAttribute("formAction", "/transfert/formulaire");
-            model.addAttribute("submitLabel", "Créer le transfert");
-            model.addAttribute("cancelUrl", "/");
-            model.addAttribute("demandeForm", dto);
-            model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
-            model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
+
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+
+            model.addAttribute("cancelUrl", "/demandes");
+
             return "demande/formulaire";
+
         }
 
-        if (refreshPieces != null) {
-            model.addAttribute("typeVisas", typeVisaRepository.findAll());
-            model.addAttribute("typesVisa", typeVisaRepository.findAll());
-            model.addAttribute("situations", situationFamilialeRepository.findAll());
-            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
-            model.addAttribute("nationalites", nationaliteRepository.findAll());
-            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
-            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
-            model.addAttribute("formAction", "/transfert/formulaire");
-            model.addAttribute("submitLabel", "Créer le transfert");
-            model.addAttribute("cancelUrl", "/");
-            model.addAttribute("demandeForm", dto);
-            model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
-            model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
-            return "demande/formulaire";
-        }
+
 
         try {
             DemandeResponseDTO created = null;
@@ -269,67 +387,112 @@ public class TransfertController {
                 
                 TransfertCreateDTO transfertDto = TransfertCreateDTO.builder()
                         .idDemandeOrigine(dto.getIdDemandeOrigine())
+
                         .passeportNouveau(dto.getPasseportNouveauDTO())
+
                         .piecesFournies(dto.getPiecesFournies())
+
                         .build();
-                
-                created = demandeService.creerTransfert(transfertDto);
-                System.out.println("   → TRANSFERT créé ID: " + created.getId());
-                
-                redirectAttributes.addFlashAttribute("successMessage", "Transfert créé avec succès");
-                return "redirect:/transfert/" + created.getId() + "/confirmation";
+
+
+
+                var response = demandeService.creerTransfert(transfertDTO);
+
+                redirectAttributes.addFlashAttribute("successMessage", "Transfert créé avec succès. Référence : #" + response.getId());
+
+                return "redirect:/transfert/" + response.getId() + "/confirmation";
+
             }
-            
-            throw new BusinessException("Configuration de transfert invalide");
-            
+
+
+
+            // Cas par défaut : erreur
+
+            model.addAttribute("errorMessage", "Paramètres manquants pour le transfert");
+
+            model.addAttribute("typesVisa", typeVisaRepository.findAll());
+
+            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+
+            model.addAttribute("nationalites", nationaliteRepository.findAll());
+
+            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+
+            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+
+            model.addAttribute("pageTitle", "Demande de Transfert");
+
+            model.addAttribute("formAction", "/transfert/formulaire");
+
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+
+            model.addAttribute("cancelUrl", "/demandes");
+
+            return "demande/formulaire";
+
+
+
         } catch (BusinessException e) {
-            System.err.println("ERREUR BUSINESS: " + e.getMessage());
-            e.printStackTrace();
+
             model.addAttribute("errorMessage", e.getMessage());
-            model.addAttribute("typeVisas", typeVisaRepository.findAll());
+
             model.addAttribute("typesVisa", typeVisaRepository.findAll());
-            model.addAttribute("situations", situationFamilialeRepository.findAll());
+
             model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
+
             model.addAttribute("nationalites", nationaliteRepository.findAll());
+
             model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
+
             model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
+
+            model.addAttribute("pageTitle", "Demande de Transfert");
+
             model.addAttribute("formAction", "/transfert/formulaire");
-            model.addAttribute("submitLabel", "Créer le transfert");
-            model.addAttribute("cancelUrl", "/");
-            model.addAttribute("demandeForm", dto);
-            model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
-            model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
+
+            model.addAttribute("submitLabel", "SOUMETTRE LE TRANSFERT");
+
+            model.addAttribute("cancelUrl", "/demandes");
+
             return "demande/formulaire";
-            
-        } catch (Exception e) {
-            System.err.println("ERREUR GENERALE: " + e.getMessage());
-            e.printStackTrace();
-            model.addAttribute("errorMessage", "Erreur technique: " + e.getMessage());
-            model.addAttribute("typeVisas", typeVisaRepository.findAll());
-            model.addAttribute("typesVisa", typeVisaRepository.findAll());
-            model.addAttribute("situations", situationFamilialeRepository.findAll());
-            model.addAttribute("situationsFamiliales", situationFamilialeRepository.findAll());
-            model.addAttribute("nationalites", nationaliteRepository.findAll());
-            model.addAttribute("piecesCommunes", pieceService.getPiecesCommunes());
-            model.addAttribute("piecesSpecifiques", dto.getIdTypeVisa() != null ? demandeService.getPiecesFormulaire(dto.getIdTypeVisa()) : List.of());
-            model.addAttribute("formAction", "/transfert/formulaire");
-            model.addAttribute("submitLabel", "Créer le transfert");
-            model.addAttribute("cancelUrl", "/");
-            model.addAttribute("demandeForm", dto);
-            model.addAttribute("avecAntecedent", dto.getAvecAntecedent());
-            model.addAttribute("modeAvecAntecedent", Boolean.TRUE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("modeSansAntecedent", Boolean.FALSE.equals(dto.getAvecAntecedent()));
-            model.addAttribute("afficherRecherche", Boolean.TRUE.equals(dto.getAvecAntecedent()) && dto.getIdDemandeOrigine() == null);
-            return "demande/formulaire";
+
         }
+
     }
 
+
+
+    /**
+
+     * GET /transfert/{id}/confirmation
+
+     * Afficher la page de confirmation après soumission
+
+     */
+
     @GetMapping("/{id}/confirmation")
+
     public String afficherConfirmation(@PathVariable Long id, Model model) {
-        var demande = demandeService.getDemande(id);
-        model.addAttribute("demande", demande);
-        return "transfert/confirmation";
+
+        try {
+
+            var demande = demandeService.getDemande(id);
+
+            model.addAttribute("demande", demande);
+
+            model.addAttribute("successMessage", "Transfert créé avec succès");
+
+            return "demande/confirmation";
+
+        } catch (ResourceNotFoundException e) {
+
+            model.addAttribute("errorMessage", "Demande introuvable");
+
+            return "redirect:/demandes";
+
+        }
+
     }
+
 }
+
