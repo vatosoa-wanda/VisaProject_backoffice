@@ -1,8 +1,3 @@
-\c postgres;
-
-DROP DATABASE IF EXISTS visa_db;
-CREATE DATABASE visa_db;
-\c visa_db;
 
 CREATE TABLE situation_familiale (
     id SERIAL PRIMARY KEY,

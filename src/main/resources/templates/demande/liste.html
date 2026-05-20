@@ -72,6 +72,10 @@
             background-color: #ffebee;
             color: #c62828;
         }
+        .badge-scan_termine {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
         /* Badges pour les types de demande */
         .badge-type-nouvelle {
             background-color: #e3f2fd;
@@ -107,23 +111,34 @@
             font-size: 0.875rem;
         }
         .btn-details {
-            background-color: #667eea;
-            border-color: #667eea;
-            color: white;
+            color: #667eea;
+            background: transparent;
+            border: 1px solid #667eea;
         }
+
         .btn-details:hover {
-            background-color: #5568d3;
-            border-color: #5568d3;
+            background: #667eea;
             color: white;
         }
+
         .btn-delete {
-            background-color: #dc3545;
-            border-color: #dc3545;
+            color: #dc3545;
+            background: transparent;
+            border: 1px solid #dc3545;
+        }
+
+        .btn-delete:hover {
+            background: #dc3545;
             color: white;
         }
-        .btn-delete:hover {
-            background-color: #c82333;
-            border-color: #bd2130;
+        .btn-modify {
+            color: #c7bfb9;
+            background: transparent;
+            border: 1px solid #c7bfb9;
+        }
+
+        .btn-modify:hover {
+            background: #c7bfb9;
             color: white;
         }
         .toolbar {
@@ -170,7 +185,15 @@
                 max-width: 100%;
             }
             .action-buttons {
-                flex-direction: column;
+                display: flex;
+                flex-direction: row;
+                gap: 0.5rem;
+                flex-wrap: nowrap;
+                align-items: center;
+            }
+            .action-buttons .btn {
+                white-space: nowrap;
+                padding: 0.25rem 0.5rem;
             }
             .btn-sm {
                 width: 100%;
@@ -277,16 +300,21 @@
                                 <div class="action-buttons">
                                     <a th:href="'/demandes/' + ${demande.id} + '/details'" 
                                        class="btn btn-sm btn-details">
-                                        <i class="bi bi-eye"></i> Détails
+                                        <i class="bi bi-eye"></i>
                                     </a>
-                                                <a th:if="${demande.statutDemande != 'SCAN_TERMINE'}"
-                                                    th:href="'/demandes/' + ${demande.id} + '/modifier'"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-pencil"></i> Modifier
+                                    <a th:if="${demande.statutDemande != 'SCAN_TERMINE'}"
+                                        th:href="'/demandes/' + ${demande.id} + '/modifier'"
+                                        class="btn btn-sm btn-modify">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a th:if="${demande.statutDemande != 'SCAN_TERMINE' && demande.statutDemande != 'APPROUVEE'}"
+                                        th:href="'/demandes/' + ${demande.id} + '/scan'"
+                                        class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-qr-code-scan"></i>
                                     </a>
                                     <a th:href="'/demandes/' + ${demande.id} + '/supprimer'"
                                        class="btn btn-sm btn-delete">
-                                        <i class="bi bi-trash"></i> Supprimer
+                                        <i class="bi bi-trash"></i>
                                     </a>
                                 </div>
                             </td>
